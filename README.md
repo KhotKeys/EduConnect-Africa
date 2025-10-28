@@ -261,10 +261,10 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 👥 Team
 
-- **Project Lead**: [Your Name]
-- **Frontend Developer**: [Team Member]
-- **Backend Developer**: [Team Member]
-- **DevOps Engineer**: [Team Member]
+- **Project Lead**: Gabriel Pawuoi
+- **Frontend Developer**: Lina
+- **Backend Developer**: Gabriel Pawuoi
+- **DevOps Engineer**: 
 
 ## 📞 Support
 
