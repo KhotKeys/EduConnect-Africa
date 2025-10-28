@@ -269,5 +269,56 @@
 - Security scan results
 
 ---
+### Backlog (Items not yet started) – Extended
+Feature Work
 
+As a student, I want AI-powered learning recommendations so that I can focus on topics where I need improvement
+
+Labels: feature, ai, recommendations
+
+Priority: High
+
+Estimated effort: 5 days
+
+As a student, I want a mobile app version of EduLearn so that I can access learning anytime
+
+Labels: feature, mobile, react-native
+
+Priority: High
+
+Estimated effort: 7 days
+
+As a system admin, I want role-based access control (RBAC) so that only authorized users can access sensitive content
+
+Labels: feature, security, admin
+
+Priority: High
+
+Estimated effort: 4 days
+
+As a student, I want multi-language support so that I can use the platform in my preferred language
+
+Labels: feature, i18n, ui/ux
+
+Priority: Medium
+
+Estimated effort: 5 days
+
+As a project manager, I want automated testing and coverage reports so that code quality is maintained
+
+Labels: devops, testing, ci-cd
+
+Priority: High
+
+Estimated effort: 3 days
+
+As a student, I want two-factor authentication (2FA) so that my account is more secure
+
+Labels: feature, security, authentication
+
+Priority: High
+
+Estimated effort: 3 days
+
+...
 *This planning document should be updated regularly to reflect current project status and priorities.*
