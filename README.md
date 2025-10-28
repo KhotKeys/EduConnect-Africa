@@ -262,9 +262,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 👥 Team
 
 - **Project Lead**: Gabriel Pawuoi
-- **Frontend Developer**: Lina
+- **Frontend Developer**: Lina IRATWE
 - **Backend Developer**: Gabriel Pawuoi
-- **DevOps Engineer**: 
+- **DevOps Engineer**: Lenine NGENZI
 
 ## 📞 Support
 
