@@ -1,0 +1,23 @@
+# Global code owners
+* @yourusername
+
+# Frontend code owners
+/frontend/ @yourusername @frontend-team
+
+# Backend code owners
+/backend/ @yourusername @backend-team
+
+# Documentation
+*.md @yourusername @docs-team
+
+# Configuration files
+/.github/ @yourusername @devops-team
+/.gitignore @yourusername @devops-team
+/LICENSE @yourusername
+
+# Firebase configuration
+/frontend/js/firebase-config.js @yourusername @backend-team
+
+# Security-related files
+/.env* @yourusername @security-team
+/secrets.yml @yourusername @security-team
