@@ -228,18 +228,24 @@ jobs:
               IMAGE="${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ secrets.REPOSITORY_NAME }}:latest"
             fi
 
-            # If no compose file exists in the working directory, create a minimal one
-            if [ ! -f docker-compose.yml ] && [ ! -f docker-compose.yaml ] && [ ! -f compose.yml ] && [ ! -f compose.yaml ]; then
-              echo "No compose file found in the current directory. Writing minimal docker-compose.yml using image: $IMAGE"
-              echo "version: '3.8'" > docker-compose.yml
-              echo "services:" >> docker-compose.yml
-              echo "  app:" >> docker-compose.yml
-              echo "    image: $IMAGE" >> docker-compose.yml
-              echo "    ports:" >> docker-compose.yml
-              echo "      - \"80:80\"" >> docker-compose.yml
-              echo "    restart: always" >> docker-compose.yml
-            else
-              echo "Found docker compose configuration. Using existing file."
+            # Write a minimal docker-compose.yml using the computed image (overwrite if present).
+            # This avoids malformed or stale compose files on the remote host causing validation errors.
+            echo "Writing docker-compose.yml using image: $IMAGE"
+            # Write the compose file line-by-line to avoid heredoc/indentation issues
+            printf "version: '3.8'\n" > docker-compose.yml
+            printf "services:\n" >> docker-compose.yml
+            printf "  app:\n" >> docker-compose.yml
+            printf "    image: %s\n" "$IMAGE" >> docker-compose.yml
+            printf "    ports:\n" >> docker-compose.yml
+            printf "      - \"80:80\"\n" >> docker-compose.yml
+            printf "    restart: always\n" >> docker-compose.yml
+
+            # Validate the generated compose file before continuing
+            echo "Validating docker-compose.yml"
+            if ! sudo docker compose -f docker-compose.yml config >/dev/null 2>&1; then
+              echo "ERROR: Generated docker-compose.yml is invalid:" >&2
+              sudo docker compose -f docker-compose.yml config || true
+              exit 1
             fi
 
             echo "Pulling images from registry"
