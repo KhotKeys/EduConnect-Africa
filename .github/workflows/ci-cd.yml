@@ -194,8 +194,29 @@ jobs:
               sudo docker-compose --version || true
               COMPOSE_CMD='sudo docker-compose'
             else
-              echo "docker compose / docker-compose not found on remote host" >&2
-              exit 1
+              echo "docker compose not found on remote host; attempting to install docker-compose-plugin via apt..."
+              sudo apt-get update -y || true
+              if sudo apt-get install -y docker-compose-plugin; then
+                echo "docker-compose-plugin installed via apt"
+              else
+                echo "apt install of docker-compose-plugin failed; trying to install compose plugin binary into /usr/local/lib/docker/cli-plugins"
+                sudo mkdir -p /usr/local/lib/docker/cli-plugins || true
+                # Try a reasonably recent compose v2 binary; if this fails the CI will show the error
+                sudo curl -fsSL https://github.com/docker/compose/releases/download/v2.20.2/docker-compose-linux-x86_64 -o /usr/local/lib/docker/cli-plugins/docker-compose || true
+                sudo chmod +x /usr/local/lib/docker/cli-plugins/docker-compose || true
+              fi
+
+              # Re-check for compose now
+              if sudo docker compose version >/dev/null 2>&1; then
+                sudo docker compose version || true
+                COMPOSE_CMD='sudo docker compose'
+              elif sudo docker-compose --version >/dev/null 2>&1; then
+                sudo docker-compose --version || true
+                COMPOSE_CMD='sudo docker-compose'
+              else
+                echo "docker compose / docker-compose still not found after attempted installs" >&2
+                exit 1
+              fi
             fi
 
             echo "Using compose command: $COMPOSE_CMD"
