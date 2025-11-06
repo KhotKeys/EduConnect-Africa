@@ -118,8 +118,6 @@ venv.bak/
 
 # Docker
 .dockerignore
-Dockerfile
-docker-compose.yml
 .docker/
 
 # Terraform
