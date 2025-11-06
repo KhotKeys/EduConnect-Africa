@@ -24,6 +24,21 @@ jobs:
         with:
           node-version: '18'
 
+      - name: "Debug: list workspace files"
+        run: |
+          echo "=== Repo root: $(pwd) ==="
+          echo "=== Show top-level files ==="
+          ls -la || true
+          echo "=== Show Dockerfile (if present) ==="
+          if [ -f Dockerfile ]; then
+            echo 'Dockerfile exists'
+            ls -la Dockerfile || true
+            echo '--- content ---'
+            sed -n '1,120p' Dockerfile || true
+          else
+            echo 'Dockerfile NOT FOUND'
+          fi
+
       - name: Install dependencies
         run: npm install
 
@@ -77,7 +92,8 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           context: .
-          file: Dockerfile
+          # be explicit about the Dockerfile path to avoid runner path ambiguity
+          file: ./Dockerfile
           platforms: linux/amd64
           push: true
           tags: ${{ steps.prepare.outputs.image }}
