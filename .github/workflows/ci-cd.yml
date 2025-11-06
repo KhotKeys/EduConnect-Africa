@@ -88,6 +88,17 @@ jobs:
           echo "image=$IMAGE" >> $GITHUB_OUTPUT
           echo "Computed image tag: $IMAGE"
 
+      - name: Debug: show build context tar
+        run: |
+          echo "=== Creating tarball of the current context (.) ==="
+          tar -cf /tmp/context.tar . || true
+          echo "=== Tar listing (first 200 lines) ==="
+          tar -tvf /tmp/context.tar | sed -n '1,200p' || true
+          echo "=== Dockerfile size inside tar (bytes) ==="
+          tar -O -xf /tmp/context.tar Dockerfile | wc -c || echo 'Dockerfile not in tar'
+          echo "=== Dockerfile from tar (first 120 lines) ==="
+          tar -O -xf /tmp/context.tar Dockerfile | sed -n '1,120p' || true
+
       - name: Build and push Docker image
         uses: docker/build-push-action@v4
         with:
