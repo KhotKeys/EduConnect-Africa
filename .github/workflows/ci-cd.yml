@@ -169,20 +169,30 @@ jobs:
             echo "== Kernel / OS =="
             uname -a || true
             echo "== Docker info =="
+            # Ensure docker is installed and running. If missing, attempt to install via apt.
+            if ! command -v docker >/dev/null 2>&1; then
+              echo "Docker not found on remote host — attempting install (apt)..."
+              sudo apt-get update -y || true
+              # Install docker engine and compose plugin (best-effort)
+              sudo DEBIAN_FRONTEND=noninteractive apt-get install -y docker.io docker-compose-plugin || true
+              sudo systemctl enable docker || true
+              sudo systemctl start docker || true
+            fi
             if command -v docker >/dev/null 2>&1; then
               docker --version || true
               docker info || true
             else
-              echo "docker: not found on remote host" >&2
+              echo "docker: not found on remote host after attempted install" >&2
               exit 1
             fi
             echo "== Docker Compose =="
-            if docker compose version >/dev/null 2>&1; then
-              docker compose version
-              COMPOSE_CMD='docker compose'
-            elif command -v docker-compose >/dev/null 2>&1; then
-              docker-compose --version
-              COMPOSE_CMD='docker-compose'
+            # Prefer 'sudo docker compose' to avoid needing a new login after adding user to 'docker' group
+            if sudo docker compose version >/dev/null 2>&1; then
+              sudo docker compose version || true
+              COMPOSE_CMD='sudo docker compose'
+            elif sudo docker-compose --version >/dev/null 2>&1; then
+              sudo docker-compose --version || true
+              COMPOSE_CMD='sudo docker-compose'
             else
               echo "docker compose / docker-compose not found on remote host" >&2
               exit 1
