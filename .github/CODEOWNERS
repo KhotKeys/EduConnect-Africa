@@ -1,23 +1,23 @@
 # Global code owners
-* @yourusername
+* @KhotKeys
 
 # Frontend code owners
-/frontend/ @yourusername @frontend-team
+/frontend/ @KhotKeys @frontend-team
 
 # Backend code owners
-/backend/ @yourusername @backend-team
+/backend/ @KhotKeys @backend-team
 
 # Documentation
-*.md @yourusername @docs-team
+*.md @KhotKeys @docs-team
 
 # Configuration files
-/.github/ @yourusername @devops-team
-/.gitignore @yourusername @devops-team
-/LICENSE @yourusername
+/.github/ @KhotKeys @devops-team
+/.gitignore @KhotKeys @devops-team
+/LICENSE @KhotKeys @legal-team
 
 # Firebase configuration
-/frontend/js/firebase-config.js @yourusername @backend-team
+/frontend/js/firebase-config.js @KhotKeys @backend-team
 
 # Security-related files
-/.env* @yourusername @security-team
-/secrets.yml @yourusername @security-team
+/.env* @KhotKeys @security-team
+/secrets.yml @KhotKeys @security-team
