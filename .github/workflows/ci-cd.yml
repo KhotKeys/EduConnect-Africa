@@ -88,7 +88,7 @@ jobs:
           echo "image=$IMAGE" >> $GITHUB_OUTPUT
           echo "Computed image tag: $IMAGE"
 
-      - name: Debug: show build context tar
+      - name: "Debug: show build context tar"
         run: |
           echo "=== Creating tarball of the current context (.) ==="
           tar -cf /tmp/context.tar . || true
