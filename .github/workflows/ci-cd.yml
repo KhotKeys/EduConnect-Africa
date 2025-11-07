@@ -1,0 +1,150 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Install, lint and test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
+
+      - name: Run lint (non-fatal)
+        run: npm run lint || true
+
+      - name: Run tests
+        run: npm test
+
+  build:
+    name: Build image (conditional push to ECR)
+    runs-on: ubuntu-latest
+    needs: test
+    outputs:
+      image: ${{ steps.set-image.outputs.image }}
+      push_to_ecr: ${{ steps.set-image.outputs.push_to_ecr }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare image variables
+        id: set-image
+        run: |
+          set -euo pipefail
+          # If ECR_REPO provided (full registry/repo), prefer that
+          if [ -n "${{ secrets.ECR_REPO }}" ]; then
+            echo "image=${{ secrets.ECR_REPO }}:latest" >> $GITHUB_OUTPUT
+            echo "push_to_ecr=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Otherwise, check for AWS_ACCOUNT_ID + AWS_REGION + REPOSITORY_NAME
+          if [ -n "${{ secrets.AWS_ACCOUNT_ID }}" ] && [ -n "${{ secrets.AWS_REGION }}" ] && [ -n "${{ secrets.REPOSITORY_NAME }}" ]; then
+            IMAGE="${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ secrets.REPOSITORY_NAME }}:latest"
+            echo "image=$IMAGE" >> $GITHUB_OUTPUT
+            echo "push_to_ecr=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # No ECR target; build locally only
+          echo "image=educonnect:latest" >> $GITHUB_OUTPUT
+          echo "push_to_ecr=false" >> $GITHUB_OUTPUT
+
+      - name: Login to Amazon ECR (if configured)
+        if: ${{ steps.set-image.outputs.push_to_ecr == 'true' }}
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Configure AWS credentials (if configured)
+        if: ${{ steps.set-image.outputs.push_to_ecr == 'true' }}
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Build (and push if ECR configured)
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          file: Dockerfile
+          platforms: linux/amd64
+          push: ${{ steps.set-image.outputs.push_to_ecr }}
+          tags: ${{ steps.set-image.outputs.image }}
+
+      - name: Output built image info
+        run: |
+          echo "Image: ${{ steps.set-image.outputs.image }}"
+
+  deploy:
+    name: Deploy via SSH (optional)
+    runs-on: ubuntu-latest
+    needs: build
+    if: ${{ always() }}
+    steps:
+      - name: Decide whether to deploy
+        id: decide
+        run: |
+          set -euo pipefail
+          DEPLOY=false
+          if [ -n "${{ secrets.EC2_HOST }}" ] && [ -n "${{ secrets.SSH_PRIVATE_KEY_EC2 }}" ]; then
+            DEPLOY=true
+          fi
+          echo "deploy=$DEPLOY" >> $GITHUB_OUTPUT
+
+      - name: Sanitize EC2_HOST
+        id: sanitize
+        if: ${{ steps.decide.outputs.deploy == 'true' }}
+        run: |
+          set -euo pipefail
+          RAW_HOST="${{ secrets.EC2_HOST }}"
+          HOST="${RAW_HOST#http://}"
+          HOST="${HOST#https://}"
+          HOST="${HOST%/}"
+          echo "host=$HOST" >> $GITHUB_OUTPUT
+
+      - name: Deploy via SSH to EC2
+        if: ${{ steps.decide.outputs.deploy == 'true' }}
+        uses: appleboy/ssh-action@v1.8.0
+        with:
+          host: ${{ steps.sanitize.outputs.host }}
+          username: ubuntu
+          key: ${{ secrets.SSH_PRIVATE_KEY_EC2 }}
+          port: 22
+          script: |
+            set -euo pipefail
+            echo "Connected to remote"
+            if ! command -v docker >/dev/null 2>&1; then
+              echo "docker not found on remote" >&2
+              exit 1
+            fi
+            # If build step produced an ECR image, pull it; otherwise skip
+            IMAGE='${{ needs.build.outputs.image }}'
+            if [ -n "$IMAGE" ] && [ "$IMAGE" != "educonnect:latest" ]; then
+              docker pull "$IMAGE" || true
+            fi
+            if [ -f docker-compose.yml ] || [ -f docker-compose.yaml ]; then
+              docker compose pull || true
+              docker compose up -d --force-recreate
+            else
+              echo "No docker-compose.yml on host; creating a minimal compose using $IMAGE"
+              printf '%s\n' "version: '3.8'" "services:" "  app:" "    image: \"${IMAGE}\"" "    ports:" "      - \"80:80\"" "    restart: always" > docker-compose.yml
+              docker compose up -d --force-recreate
+            fi
