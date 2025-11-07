@@ -1,0 +1,89 @@
+name: Deploy to AWS (ECR & EC2)
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build-and-push:
+    name: Build, tag and push image to ECR
+    runs-on: ubuntu-latest
+    outputs:
+      image: ${{ steps.prepare.outputs.image }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate required secrets
+        run: |
+          set -e
+          if [ -z "${{ secrets.AWS_ACCESS_KEY_ID }}" ]; then echo "Missing secret: AWS_ACCESS_KEY_ID"; exit 1; fi
+          if [ -z "${{ secrets.AWS_SECRET_ACCESS_KEY }}" ]; then echo "Missing secret: AWS_SECRET_ACCESS_KEY"; exit 1; fi
+          if [ -z "${{ secrets.AWS_REGION }}" ]; then echo "Missing secret: AWS_REGION"; exit 1; fi
+          if [ -z "${{ secrets.ECR_REPO }}" ]; then echo "Missing secret: ECR_REPO"; exit 1; fi
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Ensure ECR repository exists and compute image URI
+        id: prepare
+        run: |
+          set -e
+          REPO="${{ secrets.ECR_REPO }}"
+          echo "Checking/creating ECR repository: $REPO"
+          aws ecr describe-repositories --repository-names "$REPO" >/dev/null 2>&1 || \
+            aws ecr create-repository --repository-name "$REPO" --image-scanning-configuration scanOnPush=true >/dev/null
+          REPO_URI=$(aws ecr describe-repositories --repository-names "$REPO" --query 'repositories[0].repositoryUri' --output text)
+          if [ -z "$REPO_URI" ]; then echo "Failed to obtain repositoryUri for $REPO"; exit 1; fi
+          IMAGE="$REPO_URI:${{ github.sha }}"
+          echo "image=$IMAGE" >> $GITHUB_OUTPUT
+          echo "Computed image tag: $IMAGE"
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: |
+            ${{ steps.prepare.outputs.image }}
+            ${{ steps.prepare.outputs.image }}-latest
+
+      - name: Output pushed image
+        run: |
+          echo "✅ Pushed image: ${{ steps.prepare.outputs.image }}"
+
+  deploy-to-ec2:
+    name: Deploy to EC2
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate deploy secrets
+        run: |
+          set -e
+          if [ -z "${{ secrets.EC2_HOST }}" ]; then echo "Missing secret: EC2_HOST"; exit 1; fi
+          if [ -z "${{ secrets.SSH_PRIVATE_KEY_EC2 }}" ]; then echo "Missing secret: SSH_PRIVATE_KEY_EC2"; exit 1; fi
+
+      - name: Deploy to EC2 instance via SSH
+        uses: appleboy/ssh-action@v1.6.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ec2-user
+          key: ${{ secrets.SSH_PRIVATE_KEY_EC2 }}
+          script: |
+            set -e
+            echo "Pulling image ${{ needs.build-and-push.outputs.image }}"
+            docker pull ${{ needs.build-and-push.outputs.image }} || exit 1
+            docker stop educonnect || true
+            docker rm educonnect || true
+            docker run -d --name educonnect -p 80:80 ${{ needs.build-and-push.outputs.image }}
+            echo "✅ Deployed on EC2 successfully"
