@@ -1,0 +1,299 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: Install, lint and test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies (use npm ci when possible)
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
+
+      - name: Run lint
+        run: npm run lint || true
+
+      - name: Run tests
+        run: npm test
+
+  build:
+    name: Build (local image)
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Build Docker image (no push)
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          file: Dockerfile
+          platforms: linux/amd64
+          push: false
+          tags: educonnect:latest
+## yaml-language-server schema
+# This helps the YAML language server and VS Code understand GitHub Actions contexts
+# and reduces false-positive 'Context access might be invalid' warnings.
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build and push to ECR
+    runs-on: ubuntu-latest
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+      REPOSITORY_NAME: ${{ secrets.REPOSITORY_NAME }}
+      ECR_REPO: ${{ secrets.ECR_REPO }}
+
+    steps:
+      - name: Validate build secrets
+        id: validate-build-secrets
+        run: |
+          echo "Validating required build secrets..."
+          MISSING=0
+          if [ -z "$AWS_ACCESS_KEY_ID" ]; then
+            echo "ERROR: AWS_ACCESS_KEY_ID is not set" >&2; MISSING=1
+          fi
+          if [ -z "$AWS_SECRET_ACCESS_KEY" ]; then
+            echo "ERROR: AWS_SECRET_ACCESS_KEY is not set" >&2; MISSING=1
+          fi
+          if [ -z "$AWS_REGION" ]; then
+            echo "ERROR: AWS_REGION is not set" >&2; MISSING=1
+          fi
+          # Either ECR_REPO or AWS_ACCOUNT_ID+REPOSITORY_NAME must be present
+          if [ -z "$ECR_REPO" ]; then
+            if [ -z "$AWS_ACCOUNT_ID" ] || [ -z "$REPOSITORY_NAME" ]; then
+              echo "ERROR: ECR_REPO is not set and AWS_ACCOUNT_ID/REPOSITORY_NAME are missing" >&2; MISSING=1
+            fi
+          fi
+          if [ "$MISSING" -eq 1 ]; then
+            echo "One or more required secrets are missing. Failing build early to avoid confusing errors." >&2
+            exit 1
+          fi
+
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Ensure ECR repository exists
+        run: |
+          set -e
+          REPO="$REPOSITORY_NAME"
+          REGISTRY="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+          echo "Checking for ECR repository: $REPO"
+          aws ecr describe-repositories --repository-names "$REPO" >/dev/null 2>&1 || \
+            aws ecr create-repository --repository-name "$REPO" --image-scanning-configuration scanOnPush=true || true
+
+      - name: Prepare image tag
+        id: prepare
+        run: |
+          # If a single ECR_REPO secret is provided, use that (expected to include registry/repo)
+          if [ -n "$ECR_REPO" ]; then
+            echo "image=${ECR_REPO}:latest" >> $GITHUB_OUTPUT
+            echo "Using ECR_REPO secret for image: ${ECR_REPO}:latest"
+            exit 0
+          fi
+
+          # Otherwise ensure required pieces exist
+          if [ -z "$AWS_ACCOUNT_ID" ] || [ -z "$AWS_REGION" ] || [ -z "$REPOSITORY_NAME" ]; then
+            echo "ERROR: Missing required secrets. Set ECR_REPO or AWS_ACCOUNT_ID + AWS_REGION + REPOSITORY_NAME." >&2
+            exit 1
+          fi
+
+          IMAGE="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${REPOSITORY_NAME}:latest"
+          echo "image=$IMAGE" >> $GITHUB_OUTPUT
+          echo "Computed image tag: $IMAGE"
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          file: Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.prepare.outputs.image }}
+
+      - name: Output pushed image
+        run: |
+          echo "Pushed image: ${{ steps.prepare.outputs.image }}"
+          echo "Prepare step output: ${{ steps.prepare.outputs.image }}"
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      EC2_HOST: ${{ secrets.EC2_HOST }}
+      SSH_PRIVATE_KEY_EC2: ${{ secrets.SSH_PRIVATE_KEY_EC2 }}
+      ECR_REPO: ${{ secrets.ECR_REPO }}
+      AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      REPOSITORY_NAME: ${{ secrets.REPOSITORY_NAME }}
+    needs: build
+    timeout-minutes: 10
+    steps:
+      - name: Validate deploy secrets
+        id: validate
+        run: |
+          echo "Validating required deploy secrets..."
+          SKIP="false"
+          if [ -z "$EC2_HOST" ]; then
+            echo "EC2_HOST is missing; SSH deploy will be skipped." >&2
+            SKIP="true"
+          fi
+          if [ -z "$SSH_PRIVATE_KEY_EC2" ]; then
+            echo "SSH_PRIVATE_KEY_EC2 is missing; SSH deploy will be skipped." >&2
+            SKIP="true"
+          fi
+          echo "skip=$SKIP" >> $GITHUB_OUTPUT
+          if [ "$SKIP" = "false" ]; then
+            echo "Secrets look present (masked). Proceeding to deploy..."
+          else
+            echo "Skipping SSH deploy due to missing secrets. If you intended a production deploy, set ECS_HOST and SSH_PRIVATE_KEY_EC2 or switch to an AWS ECS deploy method." >&2
+          fi
+
+      - name: Sanitize EC2_HOST (strip http(s)://)
+        id: sanitize-host
+        run: |
+          set -euo pipefail
+          RAW_HOST="$EC2_HOST"
+          # strip protocol and trailing slash
+          HOST="${RAW_HOST#http://}"
+          HOST="${HOST#https://}"
+          HOST="${HOST%/}"
+          if [ -z "$HOST" ]; then
+            echo "host=" >> $GITHUB_OUTPUT
+            echo "WARNING: ECS_HOST sanitized to empty string" >&2
+            exit 0
+          fi
+          echo "host=$HOST" >> $GITHUB_OUTPUT
+
+      - name: Deploy via SSH to ECS (with diagnostics)
+        if: ${{ steps.validate.outputs.skip != 'true' }}
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ steps.sanitize-host.outputs.host }}
+          username: ubuntu
+          key: ${{ env.SSH_PRIVATE_KEY_EC2 }}
+          script: |
+            set -euo pipefail
+            echo "=== Connected: $(date) ==="
+            echo "== Remote user / host =="
+            whoami || true
+            hostname || true
+            echo "== Kernel / OS =="
+            uname -a || true
+            echo "== Docker info =="
+            if command -v docker >/dev/null 2>&1; then
+              docker --version || true
+              docker info || true
+            else
+              echo "docker: not found on remote host" >&2
+              exit 1
+            fi
+            echo "== Docker Compose =="
+            if docker compose version >/dev/null 2>&1; then
+              docker compose version
+              COMPOSE_CMD='docker compose'
+            elif command -v docker-compose >/dev/null 2>&1; then
+              docker-compose --version
+              COMPOSE_CMD='docker-compose'
+            else
+              echo "docker compose / docker-compose not found on remote host" >&2
+              exit 1
+            fi
+
+            echo "Using compose command: $COMPOSE_CMD"
+            echo "Preparing docker-compose configuration (if missing)"
+            # compute image tag (same logic used in build step)
+            if [ -n "$ECR_REPO" ]; then
+              IMAGE="${ECR_REPO}:latest"
+            else
+              IMAGE="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${REPOSITORY_NAME}:latest"
+            fi
+
+            # If no compose file exists in the working directory, create a minimal one
+            if [ ! -f docker-compose.yml ] && [ ! -f docker-compose.yaml ] && [ ! -f compose.yml ] && [ ! -f compose.yaml ]; then
+              echo "No compose file found in the current directory. Writing minimal docker-compose.yml using image: $IMAGE"
+              echo "version: '3.8'" > docker-compose.yml
+              echo "services:" >> docker-compose.yml
+              echo "  app:" >> docker-compose.yml
+              echo "    image: $IMAGE" >> docker-compose.yml
+              echo "    ports:" >> docker-compose.yml
+              echo "      - \"80:80\"" >> docker-compose.yml
+              echo "    restart: always" >> docker-compose.yml
+            else
+              echo "Found docker compose configuration. Using existing file."
+            fi
+
+            echo "Pulling images from registry"
+            $COMPOSE_CMD pull || true
+            echo "Starting services"
+            $COMPOSE_CMD up -d --force-recreate
+            echo "Deploy completed successfully"
+  my-job:
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Cache Docker layers
+        uses: actions/cache@v3
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          file: Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ secrets.ECR_REPO }}:latest
+
+      - name: Output pushed image
+        run: |
+          echo "Pushed image: ${{ secrets.ECR_REPO }}:latest"
