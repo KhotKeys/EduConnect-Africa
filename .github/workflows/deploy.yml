@@ -74,7 +74,8 @@ jobs:
           if [ -z "${{ secrets.SSH_PRIVATE_KEY_EC2 }}" ]; then echo "Missing secret: SSH_PRIVATE_KEY_EC2"; exit 1; fi
 
       - name: Deploy to EC2 instance via SSH
-        uses: appleboy/ssh-action@v1.6.0
+        # pinned to a stable release tag for reproducibility; change tag if you prefer
+        uses: appleboy/ssh-action@v0.1.6
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ec2-user
