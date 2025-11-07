@@ -76,6 +76,16 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
+      - name: Ensure ECR repository exists (if using AWS vars)
+        if: ${{ steps.set-image.outputs.push_to_ecr == 'true' && secrets.REPOSITORY_NAME }}
+        run: |
+          set -euo pipefail
+          python3 -V >/dev/null 2>&1 || sudo apt-get update -y && sudo apt-get install -y python3
+          pip3 --version >/dev/null 2>&1 || sudo apt-get install -y python3-pip
+          pip3 install --upgrade awscli
+          echo "Checking repository '${{ secrets.REPOSITORY_NAME }}' in ECR"
+          aws ecr describe-repositories --repository-names "${{ secrets.REPOSITORY_NAME }}" || aws ecr create-repository --repository-name "${{ secrets.REPOSITORY_NAME }}"
+
       - name: Login to Amazon ECR (if configured)
         if: ${{ steps.set-image.outputs.push_to_ecr == 'true' }}
         uses: aws-actions/amazon-ecr-login@v2
@@ -114,6 +124,27 @@ jobs:
           fi
           echo "deploy=$DEPLOY" >> $GITHUB_OUTPUT
 
+      - name: Determine deploy user
+        id: deploy-user
+        if: ${{ steps.decide.outputs.deploy == 'true' }}
+        run: |
+          if [ -n "${{ secrets.DEPLOY_USER }}" ]; then
+            echo "user=${{ secrets.DEPLOY_USER }}" >> $GITHUB_OUTPUT
+          else
+            echo "user=ubuntu" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Add EC2 host to known_hosts
+        if: ${{ steps.decide.outputs.deploy == 'true' }}
+        run: |
+          set -euo pipefail
+          RAW_HOST="${{ secrets.EC2_HOST }}"
+          HOST="${RAW_HOST#http://}"
+          HOST="${HOST#https://}"
+          HOST="${HOST%/}"
+          mkdir -p ~/.ssh
+          ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts || true
+
       - name: Sanitize EC2_HOST
         id: sanitize
         if: ${{ steps.decide.outputs.deploy == 'true' }}
@@ -130,7 +161,7 @@ jobs:
         uses: appleboy/ssh-action@v1.8.0
         with:
           host: ${{ steps.sanitize.outputs.host }}
-          username: ubuntu
+          username: ${{ steps.deploy-user.outputs.user }}
           key: ${{ secrets.SSH_PRIVATE_KEY_EC2 }}
           port: 22
           script: |
