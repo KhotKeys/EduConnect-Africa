@@ -1,0 +1,2865 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EduLearn - Educational Platform</title>
+    <link rel="icon" type="image/x-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎓</text></svg>">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+        import { getFirestore, doc, setDoc, getDoc, collection, addDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyAaChCyJD6FrmTTghSjQNR42wlcNKTAv48",
+            authDomain: "devop-87da6.firebaseapp.com",
+            projectId: "devop-87da6",
+            storageBucket: "devop-87da6.firebasestorage.app",
+            messagingSenderId: "820034476771",
+            appId: "1:820034476771:web:12fffcead32fe2749343d6",
+            measurementId: "G-MJ4L9GRYDL"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // Make Firebase available globally
+        window.auth = auth;
+        window.db = db;
+        window.createUserWithEmailAndPassword = createUserWithEmailAndPassword;
+        window.signInWithEmailAndPassword = signInWithEmailAndPassword;
+        window.signOut = signOut;
+        window.onAuthStateChanged = onAuthStateChanged;
+        window.updateProfile = updateProfile;
+        window.doc = doc;
+        window.setDoc = setDoc;
+        window.getDoc = getDoc;
+        window.collection = collection;
+        window.addDoc = addDoc;
+        window.serverTimestamp = serverTimestamp;
+    </script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        /* Header */
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 1rem 0;
+            box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: relative;
+            width: 100%;
+        }
+
+        .nav-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+        }
+
+        @media (min-width: 769px) {
+            .nav {
+                flex-direction: row;
+                justify-content: space-between;
+                align-items: center;
+            }
+            
+            .nav-header {
+                display: contents;
+            }
+            
+            .nav-links {
+                display: flex;
+                gap: 2rem;
+                align-items: center;
+                position: static;
+                background: none;
+                box-shadow: none;
+                padding: 0;
+                flex-direction: row;
+            }
+            
+            .nav-buttons {
+                display: flex;
+                gap: 10px;
+            }
+            
+            .nav-toggle {
+                display: none;
+            }
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .logo i {
+            margin-right: 10px;
+            font-size: 2rem;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+        }
+
+        .nav-link {
+            color: #333;
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.3s ease;
+            position: relative;
+            white-space: nowrap;
+        }
+
+        .nav-link:hover {
+            color: #667eea;
+        }
+
+        .nav-link::after {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: #667eea;
+            transition: width 0.3s ease;
+        }
+
+        .nav-link:hover::after {
+            width: 100%;
+        }
+
+        .nav-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .nav-toggle {
+            display: none;
+            flex-direction: column;
+            cursor: pointer;
+            gap: 4px;
+        }
+
+        .nav-toggle span {
+            width: 25px;
+            height: 3px;
+            background: #333;
+            transition: all 0.3s ease;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-outline {
+            background: transparent;
+            color: #667eea;
+            border: 2px solid #667eea;
+        }
+
+        .btn-outline:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        /* Hero Section */
+        .hero {
+            text-align: center;
+            padding: 6rem 0;
+            color: white;
+            position: relative;
+            overflow: hidden;
+            background: linear-gradient(rgba(102, 126, 234, 0.8), rgba(118, 75, 162, 0.8)), url('images/hero.jpg');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.3);
+            z-index: 0;
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        .hero h1 {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+            animation: fadeInUp 1s ease-out;
+        }
+
+        .hero .subtitle {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            opacity: 0.9;
+            animation: fadeInUp 1s ease-out 0.2s both;
+        }
+
+        .hero p {
+            font-size: 1.2rem;
+            margin-bottom: 2rem;
+            opacity: 0.9;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            animation: fadeInUp 1s ease-out 0.4s both;
+        }
+
+        .hero-stats {
+            display: flex;
+            justify-content: center;
+            gap: 3rem;
+            margin-top: 3rem;
+            animation: fadeInUp 1s ease-out 0.6s both;
+        }
+
+        .hero-stat {
+            text-align: center;
+            background: rgba(255, 255, 255, 0.15);
+            padding: 1.5rem;
+            border-radius: 15px;
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+        }
+
+        .hero-stat-number {
+            font-size: 2.5rem;
+            font-weight: bold;
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+
+        .hero-stat-label {
+            font-size: 1rem;
+            opacity: 0.9;
+        }
+
+        .hero-cta {
+            margin-top: 2rem;
+            animation: fadeInUp 1s ease-out 0.8s both;
+        }
+
+        .hero-btn {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 2px solid rgba(255, 255, 255, 0.4);
+            padding: 1rem 2rem;
+            border-radius: 50px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.8rem;
+            backdrop-filter: blur(15px);
+            margin: 0 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .hero-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            border-color: rgba(255, 255, 255, 0.6);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+        }
+
+        .hero-btn.primary {
+            background: rgba(255, 255, 255, 0.95);
+            color: #667eea;
+            border-color: rgba(255, 255, 255, 0.95);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .hero-btn.primary:hover {
+            background: white;
+            color: #667eea;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Main Content */
+        .main-content {
+            background: white;
+            margin: 2rem auto;
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .section-title {
+            text-align: center;
+            font-size: 2rem;
+            margin-bottom: 2rem;
+            color: #333;
+        }
+
+        /* Navigation Tabs */
+        .nav-tabs {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .tab-btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            background: #f8f9fa;
+            color: #666;
+        }
+
+        .tab-btn.active {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+
+        .tab-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        /* Tab Content */
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Grid Layouts */
+        .grid {
+            display: grid;
+            gap: 2rem;
+            margin-bottom: 3rem;
+        }
+
+        .grid-2 {
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        }
+
+        .grid-3 {
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        }
+
+        .grid-4 {
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        }
+
+        /* Cards */
+        .card {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 2rem;
+            text-align: center;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+            cursor: pointer;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            border-color: #667eea;
+        }
+
+        .card-icon {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1rem;
+            color: white;
+            font-size: 2rem;
+        }
+
+        .card h3 {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            color: #333;
+        }
+
+        .card p {
+            color: #666;
+            margin-bottom: 1.5rem;
+        }
+
+        .card-btn {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            width: 100%;
+            font-size: 1rem;
+        }
+
+        .card-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .card-btn i {
+            margin-right: 8px;
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(5px);
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 2% auto;
+            padding: 2rem;
+            border-radius: 20px;
+            width: 95%;
+            max-width: 900px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .modal-header h2 {
+            color: #333;
+            font-size: 1.8rem;
+        }
+
+        .close {
+            color: #aaa;
+            font-size: 2rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: color 0.3s ease;
+        }
+
+        .close:hover {
+            color: #667eea;
+        }
+
+        /* Quiz Styles */
+        .quiz-question {
+            background: #f8f9fa;
+            padding: 1.5rem;
+            border-radius: 10px;
+            margin-bottom: 1.5rem;
+        }
+
+        .quiz-question h3 {
+            margin-bottom: 1rem;
+            color: #333;
+        }
+
+        .quiz-options {
+            list-style: none;
+        }
+
+        .quiz-options li {
+            margin-bottom: 0.5rem;
+        }
+
+        .quiz-options label {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .quiz-options label:hover {
+            background-color: #e9ecef;
+        }
+
+        .quiz-options input[type="radio"] {
+            margin-right: 10px;
+        }
+
+        .quiz-navigation {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 2rem;
+            padding-top: 1rem;
+            border-top: 2px solid #f0f0f0;
+        }
+
+        .quiz-progress {
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        .quiz-timer {
+            background: #ff6b6b;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: 600;
+        }
+
+        .quiz-results {
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .score-circle {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1rem;
+            color: white;
+            font-size: 2rem;
+            font-weight: bold;
+        }
+
+        /* Calculator Styles */
+        .calculator {
+            background: #f8f9fa;
+            padding: 2rem;
+            border-radius: 10px;
+            margin: 2rem 0;
+        }
+
+        .calc-display {
+            width: 100%;
+            padding: 15px;
+            font-size: 1.5rem;
+            text-align: right;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin-bottom: 1rem;
+            background: white;
+        }
+
+        .calc-buttons {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+        }
+
+        .calc-btn {
+            padding: 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .calc-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .calc-btn.number {
+            background: #e9ecef;
+        }
+
+        .calc-btn.operator {
+            background: #667eea;
+            color: white;
+        }
+
+        .calc-btn.clear {
+            background: #dc3545;
+            color: white;
+        }
+
+        .calc-btn.equals {
+            background: #28a745;
+            color: white;
+        }
+
+        /* Notes Styles */
+        .notes-area {
+            width: 100%;
+            height: 300px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-family: inherit;
+            resize: vertical;
+            margin-bottom: 1rem;
+        }
+
+        /* Timer Styles */
+        .timer-display {
+            font-size: 3rem;
+            font-weight: bold;
+            color: #667eea;
+            margin: 1rem 0;
+            text-align: center;
+        }
+
+        /* Progress Styles */
+        .progress-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin: 2rem 0;
+        }
+
+        .stat-card {
+            background: #f8f9fa;
+            padding: 1.5rem;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        /* Upload Styles */
+        .upload-area {
+            border: 2px dashed #667eea;
+            border-radius: 10px;
+            padding: 3rem;
+            margin: 2rem 0;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            text-align: center;
+        }
+
+        .upload-area:hover {
+            background: rgba(102, 126, 234, 0.1);
+        }
+
+        .upload-area.dragover {
+            background: rgba(102, 126, 234, 0.2);
+            border-color: #764ba2;
+        }
+
+        /* About Us Section */
+        .about-section {
+            background: #f8f9fa;
+            padding: 4rem 0;
+            margin: 2rem 0;
+        }
+
+        .about-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4rem;
+            align-items: center;
+        }
+
+        .about-text h2 {
+            font-size: 2.5rem;
+            margin-bottom: 1.5rem;
+            color: #333;
+        }
+
+        .about-text p {
+            font-size: 1.1rem;
+            line-height: 1.8;
+            color: #666;
+            margin-bottom: 1.5rem;
+        }
+
+        .about-features {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+
+        .about-feature {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .about-feature i {
+            font-size: 1.5rem;
+            color: #667eea;
+        }
+
+        .about-image {
+            text-align: center;
+        }
+
+        .about-image img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .about-stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 2rem;
+            margin-top: 3rem;
+            text-align: center;
+        }
+
+        .about-stat {
+            background: white;
+            padding: 2rem;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .about-stat-number {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #667eea;
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+
+        .about-stat-label {
+            color: #666;
+            font-weight: 600;
+        }
+
+        /* Auth Overlay */
+        .auth-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), url('images/sign.jpg');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            backdrop-filter: blur(10px);
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .auth-modal {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 3rem;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+            max-width: 500px;
+            width: 90%;
+            text-align: center;
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .auth-modal h2 {
+            color: #333;
+            margin-bottom: 1rem;
+            font-size: 2rem;
+        }
+
+        .auth-modal p {
+            color: #666;
+            margin-bottom: 2rem;
+            line-height: 1.6;
+        }
+
+        .auth-tabs {
+            display: flex;
+            margin-bottom: 2rem;
+            border-radius: 10px;
+            overflow: hidden;
+            background: #f8f9fa;
+        }
+
+        .auth-tab {
+            flex: 1;
+            padding: 1rem;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .auth-tab.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .auth-form {
+            display: none;
+        }
+
+        .auth-form.active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+            text-align: left;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #333;
+            font-weight: 600;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(5px);
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .auth-btn {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .auth-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .auth-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .error-message {
+            color: #dc3545;
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+            text-align: left;
+        }
+
+        .success-message {
+            color: #28a745;
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+            text-align: left;
+        }
+
+        /* Footer Styles */
+        .footer {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            color: white;
+            padding: 3rem 0 1rem;
+            margin-top: 4rem;
+        }
+
+        .footer-content {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .footer-section h4 {
+            color: #667eea;
+            margin-bottom: 1rem;
+            font-size: 1.2rem;
+        }
+
+        .footer-logo {
+            display: flex;
+            align-items: center;
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 1rem;
+        }
+
+        .footer-logo i {
+            margin-right: 10px;
+            font-size: 2rem;
+        }
+
+        .footer-section p {
+            color: #bdc3c7;
+            line-height: 1.6;
+            margin-bottom: 1.5rem;
+        }
+
+        .footer-section ul {
+            list-style: none;
+        }
+
+        .footer-section ul li {
+            margin-bottom: 0.5rem;
+        }
+
+        .footer-section ul li a {
+            color: #bdc3c7;
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
+
+        .footer-section ul li a:hover {
+            color: #667eea;
+        }
+
+        .social-links {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .social-link {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            background: rgba(102, 126, 234, 0.2);
+            color: #667eea;
+            border-radius: 50%;
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+
+        .social-link:hover {
+            background: #667eea;
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        .footer-bottom {
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            padding-top: 2rem;
+        }
+
+        .footer-bottom-content {
+            text-align: center;
+            color: #bdc3c7;
+        }
+
+        .footer-bottom-content p {
+            margin-bottom: 0.5rem;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .nav {
+                flex-direction: row;
+                justify-content: space-between;
+                align-items: center;
+            }
+
+            .nav-links {
+                display: none;
+                position: absolute;
+                top: 100%;
+                left: 0;
+                right: 0;
+                background: rgba(255, 255, 255, 0.98);
+                backdrop-filter: blur(15px);
+                flex-direction: column;
+                padding: 1rem;
+                box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+                border-radius: 0 0 15px 15px;
+                z-index: 1001;
+                gap: 0;
+            }
+
+            .nav-links.active {
+                display: flex;
+            }
+
+            .nav-link {
+                padding: 0.8rem 0;
+                border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+                width: 100%;
+                text-align: center;
+                color: #333;
+                text-decoration: none;
+                white-space: normal;
+            }
+
+            .nav-link:last-child {
+                border-bottom: none;
+            }
+
+            .nav-toggle {
+                display: flex;
+            }
+
+            .nav-buttons {
+                display: none;
+            }
+
+            .hero h1 {
+                font-size: 2.5rem;
+            }
+            
+            .hero-stats {
+                flex-direction: column;
+                gap: 1rem;
+            }
+            
+            .about-content {
+                grid-template-columns: 1fr;
+                gap: 2rem;
+            }
+            
+            .about-features {
+                grid-template-columns: 1fr;
+            }
+            
+            .about-stats {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .nav {
+                flex-direction: column;
+                gap: 1rem;
+            }
+            
+            .nav-tabs {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .grid-2, .grid-3, .grid-4 {
+                grid-template-columns: 1fr;
+            }
+            
+            .modal-content {
+                margin: 5% auto;
+                width: 95%;
+                padding: 1rem;
+            }
+            
+            .quiz-navigation {
+                flex-direction: column;
+                gap: 1rem;
+            }
+            
+            .calc-buttons {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 0 10px;
+            }
+            
+            .main-content {
+                margin: 1rem auto;
+                padding: 1rem;
+            }
+            
+            .card {
+                padding: 1rem;
+            }
+            
+            .card-icon {
+                width: 60px;
+                height: 60px;
+                font-size: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="container">
+            <nav class="nav">
+                <div class="logo">
+                    <i class="fas fa-graduation-cap"></i>
+                    EduLearn
+                </div>
+                <div class="nav-links" id="navLinks">
+                    <a href="#home" class="nav-link" onclick="scrollToSection('home'); closeNav();">Home</a>
+                    <a href="#quizzes" class="nav-link" onclick="scrollToSection('quizzes'); closeNav();">Quizzes</a>
+                    <a href="#quizzes" class="nav-link" onclick="showTab('tools'); closeNav();">Learning Tools</a>
+                    <a href="#quizzes" class="nav-link" onclick="showTab('exams'); closeNav();">Exam Prep</a>
+                    <a href="#quizzes" class="nav-link" onclick="showTab('resources'); closeNav();">Resources</a>
+                    <a href="#about" class="nav-link" onclick="scrollToSection('about'); closeNav();">About</a>
+                </div>
+                <div class="nav-buttons" id="navButtons">
+                    <button class="btn btn-outline" onclick="showAuthOverlay()">Login</button>
+                    <button class="btn btn-primary" onclick="showAuthOverlay()">Sign Up</button>
+                </div>
+                <div class="nav-toggle" onclick="toggleNav()">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section id="home" class="hero">
+        <div class="container">
+            <div class="hero-content">
+                <h1>Welcome to EduLearn</h1>
+                <div class="subtitle">Empowering African Students Through Technology</div>
+                <p>Your comprehensive educational platform for interactive learning, personalized quizzes, and exam preparation. Join thousands of students across Africa in their educational journey.</p>
+                
+                <div class="hero-stats">
+                    <div class="hero-stat">
+                        <span class="hero-stat-number">10,000+</span>
+                        <span class="hero-stat-label">Active Students</span>
+                    </div>
+                    <div class="hero-stat">
+                        <span class="hero-stat-number">500+</span>
+                        <span class="hero-stat-label">Quiz Questions</span>
+                    </div>
+                    <div class="hero-stat">
+                        <span class="hero-stat-number">15</span>
+                        <span class="hero-stat-label">Subjects</span>
+                    </div>
+                    <div class="hero-stat">
+                        <span class="hero-stat-number">95%</span>
+                        <span class="hero-stat-label">Success Rate</span>
+                    </div>
+                </div>
+                
+                <div class="hero-cta">
+                    <button class="hero-btn primary" onclick="scrollToContent()">
+                        <i class="fas fa-rocket"></i>
+                        Get Started
+                    </button>
+                    <button class="hero-btn" onclick="showAboutUs()">
+                        <i class="fas fa-info-circle"></i>
+                        Learn More
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Main Content -->
+    <main id="quizzes" class="main-content">
+        <div class="container">
+            <!-- Navigation Tabs -->
+            <div class="nav-tabs">
+                <button class="tab-btn active" onclick="showTab('quizzes')">
+                    <i class="fas fa-question-circle"></i> Quizzes
+                </button>
+                <button class="tab-btn" onclick="showTab('tools')">
+                    <i class="fas fa-tools"></i> Learning Tools
+                </button>
+                <button class="tab-btn" onclick="showTab('exams')">
+                    <i class="fas fa-certificate"></i> Exam Prep
+                </button>
+                <button class="tab-btn" onclick="showTab('resources')">
+                    <i class="fas fa-share-alt"></i> Resources
+                </button>
+            </div>
+
+            <!-- Quizzes Tab -->
+            <div id="quizzes" class="tab-content active">
+                <h2 class="section-title">Interactive Quizzes</h2>
+                <div class="grid grid-2">
+                    <div class="card" onclick="startQuiz('mathematics')">
+                        <div class="card-icon">
+                            <i class="fas fa-calculator"></i>
+                        </div>
+                        <h3>Mathematics</h3>
+                        <p>Algebra, Geometry, Calculus, Statistics</p>
+                        <button class="card-btn">
+                            <i class="fas fa-play"></i>
+                            Take Mathematics Quiz
+                        </button>
+                    </div>
+
+                    <div class="card" onclick="startQuiz('physics')">
+                        <div class="card-icon">
+                            <i class="fas fa-atom"></i>
+                        </div>
+                        <h3>Physics</h3>
+                        <p>Mechanics, Thermodynamics, Electromagnetism</p>
+                        <button class="card-btn">
+                            <i class="fas fa-play"></i>
+                            Take Physics Quiz
+                        </button>
+                    </div>
+
+                    <div class="card" onclick="startQuiz('chemistry')">
+                        <div class="card-icon">
+                            <i class="fas fa-flask"></i>
+                        </div>
+                        <h3>Chemistry</h3>
+                        <p>Organic, Inorganic, Physical Chemistry</p>
+                        <button class="card-btn">
+                            <i class="fas fa-play"></i>
+                            Take Chemistry Quiz
+                        </button>
+                    </div>
+
+                    <div class="card" onclick="startQuiz('biology')">
+                        <div class="card-icon">
+                            <i class="fas fa-dna"></i>
+                        </div>
+                        <h3>Biology</h3>
+                        <p>Cell Biology, Genetics, Ecology</p>
+                        <button class="card-btn">
+                            <i class="fas fa-play"></i>
+                            Take Biology Quiz
+                        </button>
+                    </div>
+
+                    <div class="card" onclick="startQuiz('english')">
+                        <div class="card-icon">
+                            <i class="fas fa-book"></i>
+                        </div>
+                        <h3>English</h3>
+                        <p>Grammar, Literature, Comprehension</p>
+                        <button class="card-btn">
+                            <i class="fas fa-play"></i>
+                            Take English Quiz
+                        </button>
+                    </div>
+
+                    <div class="card" onclick="startQuiz('history')">
+                        <div class="card-icon">
+                            <i class="fas fa-landmark"></i>
+                        </div>
+                        <h3>History</h3>
+                        <p>World History, African History, Civics</p>
+                        <button class="card-btn">
+                            <i class="fas fa-play"></i>
+                            Take History Quiz
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Learning Tools Tab -->
+            <div id="tools" class="tab-content">
+                <h2 class="section-title">Learning Tools</h2>
+                <div class="grid grid-3">
+                    <div class="card" onclick="openTool('calculator')">
+                        <div class="card-icon">
+                            <i class="fas fa-calculator"></i>
+                        </div>
+                        <h3>Calculator</h3>
+                        <p>Scientific calculator for math problems</p>
+                        <button class="card-btn">
+                            <i class="fas fa-play"></i>
+                            Open Calculator
+                        </button>
+                    </div>
+
+                    <div class="card" onclick="openTool('notes')">
+                        <div class="card-icon">
+                            <i class="fas fa-sticky-note"></i>
+                        </div>
+                        <h3>Digital Notes</h3>
+                        <p>Take and organize study notes</p>
+                        <button class="card-btn">
+                            <i class="fas fa-play"></i>
+                            Take Notes
+                        </button>
+                    </div>
+
+                    <div class="card" onclick="openTool('timer')">
+                        <div class="card-icon">
+                            <i class="fas fa-stopwatch"></i>
+                        </div>
+                        <h3>Study Timer</h3>
+                        <p>Pomodoro timer for focused study</p>
+                        <button class="card-btn">
+                            <i class="fas fa-play"></i>
+                            Start Timer
+                        </button>
+                    </div>
+
+                    <div class="card" onclick="openTool('flashcards')">
+                        <div class="card-icon">
+                            <i class="fas fa-layer-group"></i>
+                        </div>
+                        <h3>Flashcards</h3>
+                        <p>Study with digital flashcards</p>
+                        <button class="card-btn">
+                            <i class="fas fa-play"></i>
+                            Use Flashcards
+                        </button>
+                    </div>
+
+                    <div class="card" onclick="openTool('progress')">
+                        <div class="card-icon">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                        <h3>Progress Tracker</h3>
+                        <p>Track your learning progress</p>
+                        <button class="card-btn">
+                            <i class="fas fa-play"></i>
+                            View Progress
+                        </button>
+                    </div>
+
+                    <div class="card" onclick="openTool('converter')">
+                        <div class="card-icon">
+                            <i class="fas fa-exchange-alt"></i>
+                        </div>
+                        <h3>Unit Converter</h3>
+                        <p>Convert between different units</p>
+                        <button class="card-btn">
+                            <i class="fas fa-play"></i>
+                            Convert Units
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Exam Preparation Tab -->
+            <div id="exams" class="tab-content">
+                <h2 class="section-title">Exam Preparation</h2>
+                <div class="grid grid-2">
+                    <div class="card" onclick="openExamPrep('waec')">
+                        <div class="card-icon">
+                            <i class="fas fa-certificate"></i>
+                        </div>
+                        <h3>WAEC</h3>
+                        <p>West African Examinations Council</p>
+                        <button class="card-btn">
+                            <i class="fas fa-play"></i>
+                            Start WAEC Prep
+                        </button>
+                    </div>
+
+                    <div class="card" onclick="openExamPrep('jamb')">
+                        <div class="card-icon">
+                            <i class="fas fa-university"></i>
+                        </div>
+                        <h3>JAMB</h3>
+                        <p>Joint Admissions and Matriculation Board</p>
+                        <button class="card-btn">
+                            <i class="fas fa-play"></i>
+                            Start JAMB Prep
+                        </button>
+                    </div>
+
+                    <div class="card" onclick="openExamPrep('neco')">
+                        <div class="card-icon">
+                            <i class="fas fa-graduation-cap"></i>
+                        </div>
+                        <h3>NECO</h3>
+                        <p>National Examinations Council</p>
+                        <button class="card-btn">
+                            <i class="fas fa-play"></i>
+                            Start NECO Prep
+                        </button>
+                    </div>
+
+                    <div class="card" onclick="openExamPrep('sat')">
+                        <div class="card-icon">
+                            <i class="fas fa-globe"></i>
+                        </div>
+                        <h3>SAT</h3>
+                        <p>Scholastic Assessment Test</p>
+                        <button class="card-btn">
+                            <i class="fas fa-play"></i>
+                            Start SAT Prep
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Resources Tab -->
+            <div id="resources" class="tab-content">
+                <h2 class="section-title">Resource Sharing</h2>
+                <div class="grid grid-3">
+                    <div class="card" onclick="openResourceCategory('documents')">
+                        <div class="card-icon">
+                            <i class="fas fa-file-alt"></i>
+                        </div>
+                        <h3>Documents</h3>
+                        <p>PDFs, Word docs, study guides</p>
+                        <button class="card-btn">
+                            <i class="fas fa-folder-open"></i>
+                            Browse Documents
+                        </button>
+                    </div>
+
+                    <div class="card" onclick="openResourceCategory('videos')">
+                        <div class="card-icon">
+                            <i class="fas fa-video"></i>
+                        </div>
+                        <h3>Videos</h3>
+                        <p>Educational videos and tutorials</p>
+                        <button class="card-btn">
+                            <i class="fas fa-play"></i>
+                            Watch Videos
+                        </button>
+                    </div>
+
+                    <div class="card" onclick="openResourceCategory('images')">
+                        <div class="card-icon">
+                            <i class="fas fa-image"></i>
+                        </div>
+                        <h3>Images</h3>
+                        <p>Diagrams, charts, visual aids</p>
+                        <button class="card-btn">
+                            <i class="fas fa-images"></i>
+                            View Images
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Upload Section -->
+                <div style="background: #f8f9fa; border-radius: 15px; padding: 2rem; margin: 2rem 0; text-align: center;">
+                    <h3>Share Your Resources</h3>
+                    <p>Upload and share educational materials with the community</p>
+                    
+                    <div class="upload-area" onclick="document.getElementById('fileInput').click()" ondrop="handleDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)">
+                        <div style="font-size: 3rem; color: #667eea; margin-bottom: 1rem;">
+                            <i class="fas fa-cloud-upload-alt"></i>
+                        </div>
+                        <h4>Drag & Drop files here or click to browse</h4>
+                        <p>Supported formats: PDF, DOC, DOCX, PPT, PPTX, MP4, MP3, JPG, PNG</p>
+                        <input type="file" id="fileInput" multiple accept=".pdf,.doc,.docx,.ppt,.pptx,.mp4,.mp3,.jpg,.jpeg,.png" style="display: none;" onchange="handleFileSelect(event)">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- About Us Section -->
+    <section id="about" class="about-section">
+        <div class="container">
+            <div class="about-content">
+                <div class="about-text">
+                    <h2>About EduLearn</h2>
+                    <p>EduLearn is a revolutionary educational platform designed specifically for African students. We believe that quality education should be accessible to everyone, regardless of their location or economic background.</p>
+                    <p>Our mission is to bridge the educational gap in Africa by providing comprehensive learning tools, interactive quizzes, and exam preparation resources that help students excel in their academic journey.</p>
+                    
+                    <div class="about-features">
+                        <div class="about-feature">
+                            <i class="fas fa-graduation-cap"></i>
+                            <div>
+                                <h4>Quality Education</h4>
+                                <p>Curated content by African educators</p>
+                            </div>
+                        </div>
+                        <div class="about-feature">
+                            <i class="fas fa-mobile-alt"></i>
+                            <div>
+                                <h4>Mobile First</h4>
+                                <p>Optimized for all devices</p>
+                            </div>
+                        </div>
+                        <div class="about-feature">
+                            <i class="fas fa-users"></i>
+                            <div>
+                                <h4>Community Driven</h4>
+                                <p>Built by students, for students</p>
+                            </div>
+                        </div>
+                        <div class="about-feature">
+                            <i class="fas fa-chart-line"></i>
+                            <div>
+                                <h4>Progress Tracking</h4>
+                                <p>Monitor your learning journey</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="about-image">
+                    <div style="background: linear-gradient(135deg, #667eea, #764ba2); height: 400px; border-radius: 15px; display: flex; align-items: center; justify-content: center; color: white; font-size: 1.2rem;">
+                        <div style="text-align: center;">
+                            <i class="fas fa-graduation-cap" style="font-size: 4rem; margin-bottom: 1rem;"></i>
+                            <p>Empowering African Students</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="about-stats">
+                <div class="about-stat">
+                    <span class="about-stat-number">50+</span>
+                    <span class="about-stat-label">African Countries</span>
+                </div>
+                <div class="about-stat">
+                    <span class="about-stat-number">25+</span>
+                    <span class="about-stat-label">Languages Supported</span>
+                </div>
+                <div class="about-stat">
+                    <span class="about-stat-number">1000+</span>
+                    <span class="about-stat-label">Educational Resources</span>
+                </div>
+                <div class="about-stat">
+                    <span class="about-stat-number">24/7</span>
+                    <span class="about-stat-label">Support Available</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <div class="footer-logo">
+                        <i class="fas fa-graduation-cap"></i>
+                        <span>EduLearn</span>
+                    </div>
+                    <p>Empowering African students through technology and quality education. Join thousands of learners across the continent.</p>
+                    <div class="social-links">
+                        <a href="#" class="social-link"><i class="fab fa-facebook"></i></a>
+                        <a href="#" class="social-link"><i class="fab fa-twitter"></i></a>
+                        <a href="#" class="social-link"><i class="fab fa-instagram"></i></a>
+                        <a href="#" class="social-link"><i class="fab fa-linkedin"></i></a>
+                    </div>
+                </div>
+                
+                <div class="footer-section">
+                    <h4>Quick Links</h4>
+                    <ul>
+                        <li><a href="#quizzes">Interactive Quizzes</a></li>
+                        <li><a href="#tools">Learning Tools</a></li>
+                        <li><a href="#exams">Exam Preparation</a></li>
+                        <li><a href="#resources">Resource Sharing</a></li>
+                    </ul>
+                </div>
+                
+                <div class="footer-section">
+                    <h4>Subjects</h4>
+                    <ul>
+                        <li><a href="#">Mathematics</a></li>
+                        <li><a href="#">Physics</a></li>
+                        <li><a href="#">Chemistry</a></li>
+                        <li><a href="#">Biology</a></li>
+                        <li><a href="#">English</a></li>
+                        <li><a href="#">History</a></li>
+                    </ul>
+                </div>
+                
+                <div class="footer-section">
+                    <h4>Support</h4>
+                    <ul>
+                        <li><a href="#">Help Center</a></li>
+                        <li><a href="#">Contact Us</a></li>
+                        <li><a href="#">Privacy Policy</a></li>
+                        <li><a href="#">Terms of Service</a></li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="footer-bottom">
+                <div class="footer-bottom-content">
+                    <p>&copy; 2024 EduLearn. All rights reserved.</p>
+                    <p>Made with ❤️ for African students</p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Authentication Overlay -->
+    <div id="authOverlay" class="auth-overlay">
+        <div class="auth-modal">
+            <h2>Welcome to EduLearn</h2>
+            <p>Please create an account or login to access our educational platform</p>
+            
+            <div class="auth-tabs">
+                <button class="auth-tab active" onclick="switchAuthTab('signup')">Sign Up</button>
+                <button class="auth-tab" onclick="switchAuthTab('login')">Login</button>
+            </div>
+            
+            <!-- Sign Up Form -->
+            <form id="signupForm" class="auth-form active" onsubmit="handleSignup(event)">
+                <div class="form-group">
+                    <label for="signupName">Full Name</label>
+                    <input type="text" id="signupName" required>
+                </div>
+                <div class="form-group">
+                    <label for="signupEmail">Email</label>
+                    <input type="email" id="signupEmail" required>
+                </div>
+                <div class="form-group">
+                    <label for="signupPassword">Password</label>
+                    <input type="password" id="signupPassword" required minlength="6">
+                </div>
+                <button type="submit" class="auth-btn" id="signupBtn">Create Account</button>
+                <div id="signupMessage"></div>
+            </form>
+            
+            <!-- Login Form -->
+            <form id="loginForm" class="auth-form" onsubmit="handleLogin(event)">
+                <div class="form-group">
+                    <label for="loginEmail">Email</label>
+                    <input type="email" id="loginEmail" required>
+                </div>
+                <div class="form-group">
+                    <label for="loginPassword">Password</label>
+                    <input type="password" id="loginPassword" required>
+                </div>
+                <button type="submit" class="auth-btn" id="loginBtn">Login</button>
+                <div id="loginMessage"></div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Quiz Modal -->
+    <div id="quizModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="quizTitle">Quiz</h2>
+                <span class="close" onclick="closeQuizModal()">&times;</span>
+            </div>
+            <div id="quizContent">
+                <!-- Quiz content will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Tool Modal -->
+    <div id="toolModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="toolTitle">Learning Tool</h2>
+                <span class="close" onclick="closeToolModal()">&times;</span>
+            </div>
+            <div id="toolContent">
+                <!-- Tool content will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Exam Prep Modal -->
+    <div id="examModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="examTitle">Exam Preparation</h2>
+                <span class="close" onclick="closeExamModal()">&times;</span>
+            </div>
+            <div id="examContent">
+                <!-- Exam content will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Resource Modal -->
+    <div id="resourceModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="resourceTitle">Resources</h2>
+                <span class="close" onclick="closeResourceModal()">&times;</span>
+            </div>
+            <div id="resourceContent">
+                <!-- Resource content will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Login Modal -->
+    <div id="loginModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Login</h2>
+                <span class="close" onclick="closeLoginModal()">&times;</span>
+            </div>
+            <form id="loginForm">
+                <div style="margin-bottom: 1rem;">
+                    <label for="email">Email:</label>
+                    <input type="email" id="email" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; margin-top: 5px;">
+                </div>
+                <div style="margin-bottom: 1rem;">
+                    <label for="password">Password:</label>
+                    <input type="password" id="password" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; margin-top: 5px;">
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">Login</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Signup Modal -->
+    <div id="signupModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Sign Up</h2>
+                <span class="close" onclick="closeSignupModal()">&times;</span>
+            </div>
+            <form id="signupForm">
+                <div style="margin-bottom: 1rem;">
+                    <label for="signupName">Full Name:</label>
+                    <input type="text" id="signupName" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; margin-top: 5px;">
+                </div>
+                <div style="margin-bottom: 1rem;">
+                    <label for="signupEmail">Email:</label>
+                    <input type="email" id="signupEmail" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; margin-top: 5px;">
+                </div>
+                <div style="margin-bottom: 1rem;">
+                    <label for="signupPassword">Password:</label>
+                    <input type="password" id="signupPassword" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; margin-top: 5px;">
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">Sign Up</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Quiz Data
+        const quizData = {
+            mathematics: [
+                {
+                    question: "What is the value of x in the equation 2x + 5 = 13?",
+                    options: ["3", "4", "5", "6"],
+                    correct: 1,
+                    explanation: "2x + 5 = 13, so 2x = 8, therefore x = 4"
+                },
+                {
+                    question: "What is the area of a circle with radius 7cm?",
+                    options: ["49π cm²", "14π cm²", "154π cm²", "22π cm²"],
+                    correct: 0,
+                    explanation: "Area = πr² = π × 7² = 49π cm²"
+                },
+                {
+                    question: "What is the derivative of x²?",
+                    options: ["x", "2x", "x²", "2x²"],
+                    correct: 1,
+                    explanation: "Using the power rule: d/dx(x²) = 2x"
+                }
+            ],
+            physics: [
+                {
+                    question: "What is the unit of force in the SI system?",
+                    options: ["Joule", "Newton", "Watt", "Pascal"],
+                    correct: 1,
+                    explanation: "Force is measured in Newtons (N) in the SI system"
+                },
+                {
+                    question: "What is the acceleration due to gravity on Earth?",
+                    options: ["9.8 m/s²", "10 m/s²", "8.9 m/s²", "11 m/s²"],
+                    correct: 0,
+                    explanation: "The standard acceleration due to gravity on Earth is approximately 9.8 m/s²"
+                },
+                {
+                    question: "What is the formula for kinetic energy?",
+                    options: ["KE = mv", "KE = ½mv²", "KE = mgh", "KE = Fd"],
+                    correct: 1,
+                    explanation: "Kinetic energy is calculated as KE = ½mv², where m is mass and v is velocity"
+                }
+            ],
+            chemistry: [
+                {
+                    question: "What is the atomic number of Carbon?",
+                    options: ["6", "12", "14", "8"],
+                    correct: 0,
+                    explanation: "Carbon has an atomic number of 6, meaning it has 6 protons"
+                },
+                {
+                    question: "What is the chemical symbol for Gold?",
+                    options: ["Go", "Gd", "Au", "Ag"],
+                    correct: 2,
+                    explanation: "Gold's chemical symbol is Au, derived from the Latin word 'aurum'"
+                },
+                {
+                    question: "What is the pH of pure water?",
+                    options: ["6", "7", "8", "9"],
+                    correct: 1,
+                    explanation: "Pure water has a pH of 7, which is neutral"
+                }
+            ],
+            biology: [
+                {
+                    question: "What is the powerhouse of the cell?",
+                    options: ["Nucleus", "Mitochondria", "Ribosome", "Golgi Apparatus"],
+                    correct: 1,
+                    explanation: "Mitochondria are known as the powerhouse of the cell because they produce ATP"
+                },
+                {
+                    question: "What is the genetic material in cells?",
+                    options: ["RNA", "DNA", "Protein", "Lipid"],
+                    correct: 1,
+                    explanation: "DNA (Deoxyribonucleic acid) is the genetic material that carries hereditary information"
+                },
+                {
+                    question: "What process do plants use to make their own food?",
+                    options: ["Respiration", "Photosynthesis", "Digestion", "Fermentation"],
+                    correct: 1,
+                    explanation: "Photosynthesis is the process by which plants convert sunlight into energy"
+                }
+            ],
+            english: [
+                {
+                    question: "Which sentence is grammatically correct?",
+                    options: [
+                        "She don't like apples.",
+                        "She doesn't like apples.",
+                        "She doesn't likes apples.",
+                        "She don't likes apples."
+                    ],
+                    correct: 1,
+                    explanation: "The correct form is 'She doesn't like apples' - third person singular uses 'doesn't' and the base form of the verb"
+                },
+                {
+                    question: "What is the plural of 'child'?",
+                    options: ["childs", "children", "childes", "childrens"],
+                    correct: 1,
+                    explanation: "The plural of 'child' is 'children' - it's an irregular plural form"
+                },
+                {
+                    question: "Who wrote 'Romeo and Juliet'?",
+                    options: ["Charles Dickens", "William Shakespeare", "Jane Austen", "Mark Twain"],
+                    correct: 1,
+                    explanation: "William Shakespeare wrote the famous tragedy 'Romeo and Juliet'"
+                }
+            ],
+            history: [
+                {
+                    question: "Which African country was never colonized?",
+                    options: ["Ethiopia", "Liberia", "Both A and B", "None of the above"],
+                    correct: 2,
+                    explanation: "Both Ethiopia and Liberia were never formally colonized by European powers"
+                },
+                {
+                    question: "Who was the first President of Ghana?",
+                    options: ["Kwame Nkrumah", "Jerry Rawlings", "John Kufuor", "Nana Akufo-Addo"],
+                    correct: 0,
+                    explanation: "Kwame Nkrumah was the first President of Ghana after independence in 1957"
+                },
+                {
+                    question: "When did World War II end?",
+                    options: ["1944", "1945", "1946", "1947"],
+                    correct: 1,
+                    explanation: "World War II ended in 1945 with the surrender of Japan"
+                }
+            ]
+        };
+
+        // Global variables
+        let currentQuiz = null;
+        let currentQuestionIndex = 0;
+        let userAnswers = [];
+        let quizStartTime = null;
+        let quizTimer = null;
+        let timerInterval = null;
+        let timeLeft = 25 * 60; // 25 minutes in seconds
+        let currentUser = null;
+
+        // Initialize the app
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('EduLearn platform loaded successfully!');
+            initializeAuth();
+            
+            // Close navigation when clicking outside
+            document.addEventListener('click', function(event) {
+                const nav = document.querySelector('.nav');
+                const navLinks = document.getElementById('navLinks');
+                const navToggle = document.querySelector('.nav-toggle');
+                
+                if (!nav.contains(event.target) && navLinks.classList.contains('active')) {
+                    closeNav();
+                }
+            });
+        });
+
+        // Authentication Functions
+        function initializeAuth() {
+            if (window.onAuthStateChanged && window.auth) {
+                window.onAuthStateChanged(window.auth, (user) => {
+                    currentUser = user;
+                    if (user) {
+                        // User is signed in
+                        hideAuthOverlay();
+                        updateUIForLoggedInUser(user);
+                    } else {
+                        // User is signed out
+                        showAuthOverlay();
+                    }
+                });
+            } else {
+                // Firebase not loaded yet, show auth overlay
+                showAuthOverlay();
+            }
+        }
+
+        function showAuthOverlay() {
+            document.getElementById('authOverlay').style.display = 'flex';
+        }
+
+        function hideAuthOverlay() {
+            document.getElementById('authOverlay').style.display = 'none';
+        }
+
+        function updateUIForLoggedInUser(user) {
+            // Update header with user info
+            const navButtons = document.querySelector('.nav-buttons');
+            navButtons.innerHTML = `
+                <span style="color: #667eea; font-weight: 600;">Welcome, ${user.displayName || 'User'}!</span>
+                <button class="btn btn-outline" onclick="handleLogout()">Logout</button>
+            `;
+        }
+
+        function switchAuthTab(tab) {
+            // Remove active class from all tabs and forms
+            document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.auth-form').forEach(f => f.classList.remove('active'));
+            
+            // Add active class to selected tab and form
+            event.target.classList.add('active');
+            document.getElementById(tab + 'Form').classList.add('active');
+            
+            // Clear messages
+            document.getElementById('signupMessage').innerHTML = '';
+            document.getElementById('loginMessage').innerHTML = '';
+        }
+
+        function switchToLoginTab() {
+            // Remove active class from all tabs and forms
+            document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.auth-form').forEach(f => f.classList.remove('active'));
+            
+            // Add active class to login tab and form
+            document.querySelectorAll('.auth-tab')[1].classList.add('active');
+            document.getElementById('loginForm').classList.add('active');
+            
+            // Clear messages
+            document.getElementById('signupMessage').innerHTML = '';
+            document.getElementById('loginMessage').innerHTML = '';
+        }
+
+        async function handleSignup(event) {
+            event.preventDefault();
+            const signupBtn = document.getElementById('signupBtn');
+            const messageDiv = document.getElementById('signupMessage');
+            
+            const name = document.getElementById('signupName').value;
+            const email = document.getElementById('signupEmail').value;
+            const password = document.getElementById('signupPassword').value;
+            
+            signupBtn.disabled = true;
+            signupBtn.textContent = 'Creating Account...';
+            
+            try {
+                if (!window.createUserWithEmailAndPassword || !window.auth) {
+                    throw new Error('Firebase not loaded');
+                }
+                
+                const userCredential = await window.createUserWithEmailAndPassword(window.auth, email, password);
+                const user = userCredential.user;
+                
+                // Update user profile
+                await window.updateProfile(user, {
+                    displayName: name
+                });
+                
+                // Save user data to Firestore
+                try {
+                    await window.setDoc(window.doc(window.db, 'users', user.uid), {
+                        name: name,
+                        email: email,
+                        createdAt: window.serverTimestamp(),
+                        lastLogin: window.serverTimestamp(),
+                        quizResults: [],
+                        studyProgress: {},
+                        profile: {
+                            displayName: name,
+                            email: email,
+                            joinDate: new Date().toISOString()
+                        }
+                    });
+                    console.log('User data saved to Firestore successfully');
+                } catch (firestoreError) {
+                    console.error('Firestore error:', firestoreError);
+                    // Continue with signup even if Firestore fails
+                }
+                
+                messageDiv.innerHTML = '<div class="success-message">🎉 Account created successfully! Please login to continue.</div>';
+                
+                // Clear form
+                document.getElementById('signupForm').reset();
+                
+                // Switch to login tab after successful registration
+                setTimeout(() => {
+                    switchToLoginTab();
+                }, 2000);
+                
+            } catch (error) {
+                console.error('Signup error:', error);
+                let errorMessage = 'An error occurred. Please try again.';
+                
+                if (error.code === 'auth/email-already-in-use') {
+                    errorMessage = 'This email is already registered. Please try logging in instead.';
+                } else if (error.code === 'auth/weak-password') {
+                    errorMessage = 'Password should be at least 6 characters.';
+                } else if (error.code === 'auth/invalid-email') {
+                    errorMessage = 'Please enter a valid email address.';
+                }
+                
+                messageDiv.innerHTML = `<div class="error-message">${errorMessage}</div>`;
+            } finally {
+                signupBtn.disabled = false;
+                signupBtn.textContent = 'Create Account';
+            }
+        }
+
+        async function handleLogin(event) {
+            event.preventDefault();
+            const loginBtn = document.getElementById('loginBtn');
+            const messageDiv = document.getElementById('loginMessage');
+            
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            
+            loginBtn.disabled = true;
+            loginBtn.textContent = 'Logging in...';
+            
+            try {
+                if (!window.signInWithEmailAndPassword || !window.auth) {
+                    throw new Error('Firebase not loaded');
+                }
+                
+                const userCredential = await window.signInWithEmailAndPassword(window.auth, email, password);
+                const user = userCredential.user;
+                
+                // Update last login time
+                try {
+                    await window.setDoc(window.doc(window.db, 'users', user.uid), {
+                        lastLogin: window.serverTimestamp(),
+                        profile: {
+                            lastLoginDate: new Date().toISOString()
+                        }
+                    }, { merge: true });
+                    console.log('Login time updated in Firestore');
+                } catch (firestoreError) {
+                    console.error('Firestore update error:', firestoreError);
+                    // Continue with login even if Firestore fails
+                }
+                
+                messageDiv.innerHTML = '<div class="success-message">🎉 Login successful! Welcome back!</div>';
+                
+                // Clear form
+                document.getElementById('loginForm').reset();
+                
+                // Auto-hide overlay after success
+                setTimeout(() => {
+                    hideAuthOverlay();
+                }, 1500);
+                
+            } catch (error) {
+                console.error('Login error:', error);
+                let errorMessage = 'An error occurred. Please try again.';
+                
+                if (error.code === 'auth/user-not-found') {
+                    errorMessage = 'No account found with this email. Please sign up first.';
+                } else if (error.code === 'auth/wrong-password') {
+                    errorMessage = 'Incorrect password. Please try again.';
+                } else if (error.code === 'auth/invalid-email') {
+                    errorMessage = 'Please enter a valid email address.';
+                } else if (error.code === 'auth/too-many-requests') {
+                    errorMessage = 'Too many failed attempts. Please try again later.';
+                }
+                
+                messageDiv.innerHTML = `<div class="error-message">${errorMessage}</div>`;
+            } finally {
+                loginBtn.disabled = false;
+                loginBtn.textContent = 'Login';
+            }
+        }
+
+        async function handleLogout() {
+            try {
+                if (window.signOut && window.auth) {
+                    await window.signOut(window.auth);
+                    showAuthOverlay();
+                }
+            } catch (error) {
+                console.error('Logout error:', error);
+            }
+        }
+
+        // Navigation Functions
+        function scrollToContent() {
+            document.querySelector('.main-content').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function showAboutUs() {
+            document.querySelector('.about-section').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function scrollToSection(sectionId) {
+            const section = document.getElementById(sectionId);
+            if (section) {
+                section.scrollIntoView({ behavior: 'smooth' });
+            } else {
+                // If section doesn't exist, scroll to main content
+                document.querySelector('.main-content').scrollIntoView({ behavior: 'smooth' });
+            }
+        }
+
+        function toggleNav() {
+            const navLinks = document.getElementById('navLinks');
+            navLinks.classList.toggle('active');
+        }
+
+        function closeNav() {
+            const navLinks = document.getElementById('navLinks');
+            navLinks.classList.remove('active');
+        }
+
+        // Tab Functions
+        function showTab(tabName) {
+            // Hide all tab contents
+            const tabContents = document.querySelectorAll('.tab-content');
+            tabContents.forEach(tab => tab.classList.remove('active'));
+
+            // Remove active class from all tab buttons
+            const tabButtons = document.querySelectorAll('.tab-btn');
+            tabButtons.forEach(btn => btn.classList.remove('active'));
+
+            // Show selected tab content
+            document.getElementById(tabName).classList.add('active');
+
+            // Add active class to clicked button
+            event.target.classList.add('active');
+        }
+
+        // Quiz Functions
+        function startQuiz(subject) {
+            console.log('Starting quiz for:', subject);
+            currentQuiz = quizData[subject];
+            if (!currentQuiz) {
+                alert('Quiz not available for this subject yet!');
+                return;
+            }
+
+            currentQuestionIndex = 0;
+            userAnswers = [];
+            quizStartTime = Date.now();
+            
+            document.getElementById('quizTitle').textContent = `${subject.charAt(0).toUpperCase() + subject.slice(1)} Quiz`;
+            showQuestion();
+            document.getElementById('quizModal').style.display = 'block';
+        }
+
+        function showQuestion() {
+            const question = currentQuiz[currentQuestionIndex];
+            const content = document.getElementById('quizContent');
+            
+            content.innerHTML = `
+                <div class="quiz-question">
+                    <h3>Question ${currentQuestionIndex + 1} of ${currentQuiz.length}</h3>
+                    <p>${question.question}</p>
+                    <ul class="quiz-options">
+                        ${question.options.map((option, index) => `
+                            <li>
+                                <label>
+                                    <input type="radio" name="answer" value="${index}">
+                                    ${option}
+                                </label>
+                            </li>
+                        `).join('')}
+                    </ul>
+                </div>
+                <div class="quiz-navigation">
+                    <div class="quiz-progress">
+                        Progress: ${currentQuestionIndex + 1}/${currentQuiz.length}
+                    </div>
+                    <div>
+                        ${currentQuestionIndex > 0 ? '<button class="btn btn-outline" onclick="previousQuestion()">Previous</button>' : ''}
+                        <button class="btn btn-primary" onclick="nextQuestion()">
+                            ${currentQuestionIndex === currentQuiz.length - 1 ? 'Finish Quiz' : 'Next'}
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function nextQuestion() {
+            const selectedAnswer = document.querySelector('input[name="answer"]:checked');
+            if (!selectedAnswer) {
+                alert('Please select an answer!');
+                return;
+            }
+
+            userAnswers.push(parseInt(selectedAnswer.value));
+
+            if (currentQuestionIndex < currentQuiz.length - 1) {
+                currentQuestionIndex++;
+                showQuestion();
+            } else {
+                showResults();
+            }
+        }
+
+        function previousQuestion() {
+            if (currentQuestionIndex > 0) {
+                currentQuestionIndex--;
+                showQuestion();
+            }
+        }
+
+        function showResults() {
+            const correctAnswers = userAnswers.filter((answer, index) => 
+                answer === currentQuiz[index].correct
+            ).length;
+            
+            const score = Math.round((correctAnswers / currentQuiz.length) * 100);
+            const timeTaken = Math.round((Date.now() - quizStartTime) / 1000);
+            
+            let grade = 'F';
+            if (score >= 90) grade = 'A';
+            else if (score >= 80) grade = 'B';
+            else if (score >= 70) grade = 'C';
+            else if (score >= 60) grade = 'D';
+
+            const content = document.getElementById('quizContent');
+            content.innerHTML = `
+                <div class="quiz-results">
+                    <div class="score-circle">${score}%</div>
+                    <h2>Quiz Complete!</h2>
+                    <p><strong>Grade:</strong> ${grade}</p>
+                    <p><strong>Correct Answers:</strong> ${correctAnswers}/${currentQuiz.length}</p>
+                    <p><strong>Time Taken:</strong> ${timeTaken} seconds</p>
+                    
+                    <div style="margin-top: 2rem;">
+                        <h3>Question Review:</h3>
+                        ${currentQuiz.map((question, index) => `
+                            <div style="background: #f8f9fa; padding: 1rem; margin: 1rem 0; border-radius: 8px;">
+                                <p><strong>Q${index + 1}:</strong> ${question.question}</p>
+                                <p><strong>Your Answer:</strong> ${question.options[userAnswers[index]]}</p>
+                                <p><strong>Correct Answer:</strong> ${question.options[question.correct]}</p>
+                                <p><strong>Explanation:</strong> ${question.explanation}</p>
+                                <p style="color: ${userAnswers[index] === question.correct ? 'green' : 'red'};">
+                                    ${userAnswers[index] === question.correct ? '✓ Correct' : '✗ Incorrect'}
+                                </p>
+                            </div>
+                        `).join('')}
+                    </div>
+                    
+                    <div style="margin-top: 2rem;">
+                        <button class="btn btn-primary" onclick="closeQuizModal()">Close</button>
+                        <button class="btn btn-outline" onclick="downloadResults()">Download Results</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function closeQuizModal() {
+            document.getElementById('quizModal').style.display = 'none';
+        }
+
+        async function downloadResults() {
+            const results = {
+                subject: document.getElementById('quizTitle').textContent,
+                score: Math.round((userAnswers.filter((answer, index) => 
+                    answer === currentQuiz[index].correct
+                ).length / currentQuiz.length) * 100),
+                correctAnswers: userAnswers.filter((answer, index) => 
+                    answer === currentQuiz[index].correct
+                ).length,
+                totalQuestions: currentQuiz.length,
+                timeTaken: Math.round((Date.now() - quizStartTime) / 1000),
+                answers: userAnswers.map((answer, index) => ({
+                    question: currentQuiz[index].question,
+                    userAnswer: currentQuiz[index].options[answer],
+                    correctAnswer: currentQuiz[index].options[currentQuiz[index].correct],
+                    explanation: currentQuiz[index].explanation
+                }))
+            };
+
+            // Save to Firebase if user is logged in
+            if (currentUser && window.addDoc && window.collection && window.db) {
+                try {
+                    // Save to quizResults collection
+                    await window.addDoc(window.collection(window.db, 'quizResults'), {
+                        userId: currentUser.uid,
+                        userName: currentUser.displayName,
+                        subject: results.subject,
+                        score: results.score,
+                        correctAnswers: results.correctAnswers,
+                        totalQuestions: results.totalQuestions,
+                        timeTaken: results.timeTaken,
+                        completedAt: window.serverTimestamp(),
+                        answers: results.answers,
+                        timestamp: new Date().toISOString()
+                    });
+                    console.log('Quiz results saved to Firebase quizResults collection');
+                    
+                    // Also update user's document with quiz results
+                    const userRef = window.doc(window.db, 'users', currentUser.uid);
+                    await window.updateDoc(userRef, {
+                        quizResults: window.arrayUnion({
+                            subject: results.subject,
+                            score: results.score,
+                            correctAnswers: results.correctAnswers,
+                            totalQuestions: results.totalQuestions,
+                            timeTaken: results.timeTaken,
+                            completedAt: new Date().toISOString()
+                        })
+                    });
+                    console.log('Quiz results updated in user document');
+                } catch (error) {
+                    console.error('Error saving to Firebase:', error);
+                }
+            }
+
+            // Download as JSON file
+            const dataStr = JSON.stringify(results, null, 2);
+            const dataBlob = new Blob([dataStr], {type: 'application/json'});
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `${results.subject.replace(' Quiz', '')}_quiz_results.json`;
+            link.click();
+        }
+
+        // Tool Functions
+        function openTool(toolType) {
+            const modal = document.getElementById('toolModal');
+            const title = document.getElementById('toolTitle');
+            const content = document.getElementById('toolContent');
+
+            switch(toolType) {
+                case 'calculator':
+                    title.textContent = 'Scientific Calculator';
+                    content.innerHTML = `
+                        <div class="calculator">
+                            <input type="text" id="calcDisplay" class="calc-display" readonly>
+                            <div class="calc-buttons">
+                                <button class="calc-btn clear" onclick="calcInput('C')">C</button>
+                                <button class="calc-btn clear" onclick="calcInput('±')">±</button>
+                                <button class="calc-btn clear" onclick="calcInput('%')">%</button>
+                                <button class="calc-btn operator" onclick="calcInput('/')">/</button>
+                                <button class="calc-btn number" onclick="calcInput('7')">7</button>
+                                <button class="calc-btn number" onclick="calcInput('8')">8</button>
+                                <button class="calc-btn number" onclick="calcInput('9')">9</button>
+                                <button class="calc-btn operator" onclick="calcInput('*')">×</button>
+                                <button class="calc-btn number" onclick="calcInput('4')">4</button>
+                                <button class="calc-btn number" onclick="calcInput('5')">5</button>
+                                <button class="calc-btn number" onclick="calcInput('6')">6</button>
+                                <button class="calc-btn operator" onclick="calcInput('-')">-</button>
+                                <button class="calc-btn number" onclick="calcInput('1')">1</button>
+                                <button class="calc-btn number" onclick="calcInput('2')">2</button>
+                                <button class="calc-btn number" onclick="calcInput('3')">3</button>
+                                <button class="calc-btn operator" onclick="calcInput('+')">+</button>
+                                <button class="calc-btn number" onclick="calcInput('0')" style="grid-column: span 2;">0</button>
+                                <button class="calc-btn number" onclick="calcInput('.')">.</button>
+                                <button class="calc-btn equals" onclick="calcInput('=')">=</button>
+                            </div>
+                        </div>
+                    `;
+                    break;
+                case 'notes':
+                    title.textContent = 'Digital Notes';
+                    content.innerHTML = `
+                        <div>
+                            <h3>Take Digital Notes</h3>
+                            <textarea id="notesArea" class="notes-area" placeholder="Start typing your notes here..."></textarea>
+                            <div>
+                                <button class="btn btn-primary" onclick="saveNotes()" style="margin-right: 10px;">Save Notes</button>
+                                <button class="btn btn-outline" onclick="loadNotes()">Load Notes</button>
+                            </div>
+                        </div>
+                    `;
+                    break;
+                case 'timer':
+                    title.textContent = 'Study Timer';
+                    content.innerHTML = `
+                        <div style="text-align: center;">
+                            <h3>Pomodoro Study Timer</h3>
+                            <div class="timer-display" id="timerDisplay">25:00</div>
+                            <div>
+                                <button class="btn btn-primary" onclick="startTimer()" style="margin: 5px;">Start</button>
+                                <button class="btn btn-outline" onclick="pauseTimer()" style="margin: 5px;">Pause</button>
+                                <button class="btn btn-outline" onclick="resetTimer()" style="margin: 5px;">Reset</button>
+                            </div>
+                            <p>Study for 25 minutes, then take a 5-minute break</p>
+                        </div>
+                    `;
+                    break;
+                case 'flashcards':
+                    title.textContent = 'Digital Flashcards';
+                    content.innerHTML = `
+                        <div style="text-align: center;">
+                            <h3>Flashcard System</h3>
+                            <p>Create and study with digital flashcards</p>
+                            <div style="background: #f8f9fa; padding: 2rem; border-radius: 10px; margin: 2rem 0;">
+                                <h4>Create New Flashcard Set</h4>
+                                <input type="text" placeholder="Set Name" style="width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 5px;">
+                                <button class="btn btn-primary">Create Set</button>
+                            </div>
+                        </div>
+                    `;
+                    break;
+                case 'progress':
+                    title.textContent = 'Progress Tracker';
+                    content.innerHTML = `
+                        <div>
+                            <h3>Your Learning Progress</h3>
+                            <div class="progress-stats">
+                                <div class="stat-card">
+                                    <h4>Quizzes Taken</h4>
+                                    <div class="stat-number">12</div>
+                                </div>
+                                <div class="stat-card">
+                                    <h4>Average Score</h4>
+                                    <div class="stat-number">85%</div>
+                                </div>
+                                <div class="stat-card">
+                                    <h4>Study Time</h4>
+                                    <div class="stat-number">24h</div>
+                                </div>
+                                <div class="stat-card">
+                                    <h4>Streak</h4>
+                                    <div class="stat-number">7 days</div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    break;
+                case 'converter':
+                    title.textContent = 'Unit Converter';
+                    content.innerHTML = `
+                        <div style="text-align: center;">
+                            <h3>Unit Converter</h3>
+                            <div style="background: #f8f9fa; padding: 2rem; border-radius: 10px; margin: 2rem 0;">
+                                <div style="display: grid; grid-template-columns: 1fr auto 1fr; gap: 1rem; align-items: center;">
+                                    <input type="number" placeholder="Enter value" style="padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                                    <span style="font-size: 1.5rem;">→</span>
+                                    <input type="number" placeholder="Result" readonly style="padding: 10px; border: 1px solid #ddd; border-radius: 5px; background: #f8f9fa;">
+                                </div>
+                                <div style="margin-top: 1rem;">
+                                    <select style="padding: 10px; border: 1px solid #ddd; border-radius: 5px; margin-right: 10px;">
+                                        <option>Meters</option>
+                                        <option>Feet</option>
+                                        <option>Inches</option>
+                                        <option>Centimeters</option>
+                                    </select>
+                                    <span>to</span>
+                                    <select style="padding: 10px; border: 1px solid #ddd; border-radius: 5px; margin-left: 10px;">
+                                        <option>Meters</option>
+                                        <option>Feet</option>
+                                        <option>Inches</option>
+                                        <option>Centimeters</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    break;
+            }
+
+            modal.style.display = 'block';
+        }
+
+        function closeToolModal() {
+            document.getElementById('toolModal').style.display = 'none';
+        }
+
+        // Calculator functions
+        let calcDisplay = '';
+        function calcInput(value) {
+            if (value === 'C') {
+                calcDisplay = '';
+            } else if (value === '=') {
+                try {
+                    calcDisplay = eval(calcDisplay.replace('×', '*'));
+                } catch (e) {
+                    calcDisplay = 'Error';
+                }
+            } else {
+                calcDisplay += value;
+            }
+            document.getElementById('calcDisplay').value = calcDisplay;
+        }
+
+        // Notes functions
+        async function saveNotes() {
+            const notes = document.getElementById('notesArea').value;
+            
+            // Save to localStorage
+            localStorage.setItem('userNotes', notes);
+            
+            // Save to Firebase if user is logged in
+            if (currentUser && window.setDoc && window.doc && window.db) {
+                try {
+                    await window.setDoc(window.doc(window.db, 'users', currentUser.uid), {
+                        notes: notes,
+                        notesUpdatedAt: window.serverTimestamp()
+                    }, { merge: true });
+                    console.log('Notes saved to Firebase');
+                } catch (error) {
+                    console.error('Error saving notes to Firebase:', error);
+                }
+            }
+            
+            alert('Notes saved successfully!');
+        }
+
+        async function loadNotes() {
+            let notes = localStorage.getItem('userNotes') || '';
+            
+            // Load from Firebase if user is logged in
+            if (currentUser && window.getDoc && window.doc && window.db) {
+                try {
+                    const userDoc = await window.getDoc(window.doc(window.db, 'users', currentUser.uid));
+                    if (userDoc.exists() && userDoc.data().notes) {
+                        notes = userDoc.data().notes;
+                        localStorage.setItem('userNotes', notes);
+                    }
+                } catch (error) {
+                    console.error('Error loading notes from Firebase:', error);
+                }
+            }
+            
+            document.getElementById('notesArea').value = notes;
+        }
+
+        // Timer functions
+        function startTimer() {
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                updateTimerDisplay();
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    alert('Time\'s up! Take a 5-minute break!');
+                }
+            }, 1000);
+        }
+
+        function pauseTimer() {
+            clearInterval(timerInterval);
+        }
+
+        function resetTimer() {
+            clearInterval(timerInterval);
+            timeLeft = 25 * 60;
+            updateTimerDisplay();
+        }
+
+        function updateTimerDisplay() {
+            const minutes = Math.floor(timeLeft / 60);
+            const seconds = timeLeft % 60;
+            document.getElementById('timerDisplay').textContent = 
+                `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+
+        // Exam Prep Functions
+        function openExamPrep(examType) {
+            const modal = document.getElementById('examModal');
+            const title = document.getElementById('examTitle');
+            const content = document.getElementById('examContent');
+
+            const examData = {
+                waec: {
+                    title: 'WAEC Preparation',
+                    subjects: ['Mathematics', 'English Language', 'Physics', 'Chemistry', 'Biology', 'Economics', 'Geography', 'History'],
+                    description: 'Prepare for the West African Examinations Council Senior Secondary School Certificate Examination'
+                },
+                jamb: {
+                    title: 'JAMB Preparation',
+                    subjects: ['English Language', 'Mathematics', 'Physics', 'Chemistry', 'Biology', 'Economics', 'Geography', 'Government'],
+                    description: 'Prepare for the Joint Admissions and Matriculation Board University Entrance Examination'
+                },
+                neco: {
+                    title: 'NECO Preparation',
+                    subjects: ['Mathematics', 'English Language', 'Physics', 'Chemistry', 'Biology', 'Economics', 'Geography', 'History'],
+                    description: 'Prepare for the National Examinations Council Senior Secondary Certificate Examination'
+                },
+                sat: {
+                    title: 'SAT Preparation',
+                    subjects: ['Mathematics', 'Evidence-Based Reading', 'Writing and Language', 'Essay (Optional)'],
+                    description: 'Prepare for the Scholastic Assessment Test for International University Admission'
+                }
+            };
+
+            const exam = examData[examType];
+            title.textContent = exam.title;
+            
+            content.innerHTML = `
+                <div style="text-align: center; padding: 2rem;">
+                    <h3>${exam.description}</h3>
+                    <div style="background: #f8f9fa; padding: 2rem; border-radius: 10px; margin: 2rem 0;">
+                        <h4>Available Subjects:</h4>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-top: 1rem;">
+                            ${exam.subjects.map(subject => `
+                                <button class="btn btn-primary" onclick="startSubjectPrep('${subject.toLowerCase()}')">${subject}</button>
+                            `).join('')}
+                        </div>
+                    </div>
+                    
+                    <div style="background: #e3f2fd; padding: 1.5rem; border-radius: 10px; margin: 2rem 0;">
+                        <h4>Study Tips:</h4>
+                        <ul style="text-align: left; margin-top: 1rem;">
+                            <li>Create a study schedule and stick to it</li>
+                            <li>Practice with past questions regularly</li>
+                            <li>Focus on your weak areas</li>
+                            <li>Take breaks between study sessions</li>
+                            <li>Get enough sleep before the exam</li>
+                        </ul>
+                    </div>
+                    
+                    <div style="background: #f3e5f5; padding: 1.5rem; border-radius: 10px; margin: 2rem 0;">
+                        <h4>Mock Test</h4>
+                        <p>Take a practice test to assess your current level</p>
+                        <button class="btn btn-primary" onclick="startMockTest('${examType}')" style="margin-top: 1rem;">
+                            Start Mock Test
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            modal.style.display = 'block';
+        }
+
+        function closeExamModal() {
+            document.getElementById('examModal').style.display = 'none';
+        }
+
+        function startSubjectPrep(subject) {
+            alert(`Starting ${subject} preparation! This would open detailed study materials and practice questions.`);
+        }
+
+        function startMockTest(examType) {
+            alert(`Starting ${examType.toUpperCase()} mock test! This would begin a timed practice exam.`);
+        }
+
+        // Resource Functions
+        function openResourceCategory(category) {
+            const modal = document.getElementById('resourceModal');
+            const title = document.getElementById('resourceTitle');
+            const content = document.getElementById('resourceContent');
+
+            const categoryData = {
+                documents: {
+                    title: 'Documents',
+                    resources: [
+                        { name: 'Mathematics Formula Sheet', type: 'PDF', size: '2.3 MB', uploader: 'John Doe' },
+                        { name: 'Physics Study Guide', type: 'DOCX', size: '1.8 MB', uploader: 'Sarah Wilson' },
+                        { name: 'Chemistry Lab Report Template', type: 'PDF', size: '1.2 MB', uploader: 'Mike Johnson' }
+                    ]
+                },
+                videos: {
+                    title: 'Videos',
+                    resources: [
+                        { name: 'Newton\'s Laws Explained', type: 'MP4', size: '45.2 MB', uploader: 'Sarah Wilson' },
+                        { name: 'Algebra Basics Tutorial', type: 'MP4', size: '32.1 MB', uploader: 'John Doe' },
+                        { name: 'Cell Biology Animation', type: 'MP4', size: '28.7 MB', uploader: 'Alice Brown' }
+                    ]
+                },
+                images: {
+                    title: 'Images',
+                    resources: [
+                        { name: 'Periodic Table Chart', type: 'PNG', size: '3.2 MB', uploader: 'Mike Johnson' },
+                        { name: 'World Map for Geography', type: 'JPG', size: '5.1 MB', uploader: 'David Lee' },
+                        { name: 'Human Anatomy Diagram', type: 'PNG', size: '2.8 MB', uploader: 'Alice Brown' }
+                    ]
+                }
+            };
+
+            const data = categoryData[category];
+            title.textContent = data.title;
+            
+            content.innerHTML = `
+                <div style="padding: 1rem;">
+                    <h3>Available ${data.title}</h3>
+                    <div style="margin-top: 1rem;">
+                        ${data.resources.map(resource => `
+                            <div style="background: #f8f9fa; padding: 1.5rem; margin: 1rem 0; border-radius: 10px; display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <h4>${resource.name}</h4>
+                                    <p>Uploaded by ${resource.uploader} • ${resource.type} • ${resource.size}</p>
+                                </div>
+                                <div>
+                                    <button class="btn btn-primary" onclick="downloadResource('${resource.name}')" style="margin-right: 10px;">Download</button>
+                                    <button class="btn btn-outline" onclick="shareResource('${resource.name}')">Share</button>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+
+            modal.style.display = 'block';
+        }
+
+        function closeResourceModal() {
+            document.getElementById('resourceModal').style.display = 'none';
+        }
+
+        function downloadResource(filename) {
+            alert(`Downloading ${filename}... This would initiate the download in a real application.`);
+        }
+
+        function shareResource(filename) {
+            if (navigator.share) {
+                navigator.share({
+                    title: 'Educational Resource',
+                    text: `Check out this educational resource: ${filename}`,
+                    url: window.location.href
+                });
+            } else {
+                alert(`Sharing ${filename}... Copy this link to share: ${window.location.href}`);
+            }
+        }
+
+        // File Upload Functions
+        function handleFileSelect(event) {
+            const files = event.target.files;
+            handleFiles(files);
+        }
+
+        function handleDrop(event) {
+            event.preventDefault();
+            event.target.classList.remove('dragover');
+            const files = event.dataTransfer.files;
+            handleFiles(files);
+        }
+
+        function handleDragOver(event) {
+            event.preventDefault();
+            event.target.classList.add('dragover');
+        }
+
+        function handleDragLeave(event) {
+            event.preventDefault();
+            event.target.classList.remove('dragover');
+        }
+
+        function handleFiles(files) {
+            for (let file of files) {
+                console.log(`File selected: ${file.name} (${file.size} bytes)`);
+            }
+            alert(`${files.length} file(s) selected. Upload functionality would be implemented here.`);
+        }
+
+        // Close modals when clicking outside
+        window.onclick = function(event) {
+            const modals = document.querySelectorAll('.modal');
+            modals.forEach(modal => {
+                if (event.target === modal) {
+                    modal.style.display = 'none';
+                }
+            });
+        }
+    </script>
+</body>
+</html>
