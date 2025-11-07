@@ -68,10 +68,6 @@ jobs:
           echo "image=educonnect:latest" >> $GITHUB_OUTPUT
           echo "push_to_ecr=false" >> $GITHUB_OUTPUT
 
-      - name: Login to Amazon ECR (if configured)
-        if: ${{ steps.set-image.outputs.push_to_ecr == 'true' }}
-        uses: aws-actions/amazon-ecr-login@v2
-
       - name: Configure AWS credentials (if configured)
         if: ${{ steps.set-image.outputs.push_to_ecr == 'true' }}
         uses: aws-actions/configure-aws-credentials@v4
@@ -80,13 +76,22 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
+      - name: Login to Amazon ECR (if configured)
+        if: ${{ steps.set-image.outputs.push_to_ecr == 'true' }}
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Debug image variables
+        run: |
+          echo "Computed image=${{ steps.set-image.outputs.image }}"
+          echo "Computed push_to_ecr=${{ steps.set-image.outputs.push_to_ecr }}"
+
       - name: Build (and push if ECR configured)
         uses: docker/build-push-action@v4
         with:
           context: .
           file: Dockerfile
           platforms: linux/amd64
-          push: ${{ steps.set-image.outputs.push_to_ecr }}
+          push: ${{ steps.set-image.outputs.push_to_ecr == 'true' }}
           tags: ${{ steps.set-image.outputs.image }}
 
       - name: Output built image info
