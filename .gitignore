@@ -117,10 +117,11 @@ env.bak/
 venv.bak/
 
 # Docker
-.dockerignore
-Dockerfile
-docker-compose.yml
-.docker/
+# (docker files are intentionally tracked for CI; remove these lines if you want them ignored)
+# .dockerignore
+# Dockerfile
+# docker-compose.yml
+# .docker/
 
 # Terraform
 *.tfstate

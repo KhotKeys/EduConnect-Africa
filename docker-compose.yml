@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    container_name: educonnect_web
+    ports:
+      - "80:80"
+    volumes:
+      # Mount frontend folder for easy local edits (read-only in container)
+      - ./frontend:/app/frontend:ro
+    environment:
+      - FLASK_ENV=development
+      - PORT=80
+    restart: unless-stopped
+
+  # Example database service (uncomment if needed)
+  # db:
+  #   image: postgres:15-alpine
+  #   environment:
+  #     POSTGRES_DB: educonnect
+  #     POSTGRES_USER: postgres
+  #     POSTGRES_PASSWORD: postgres
+  #   volumes:
+  #     - db-data:/var/lib/postgresql/data
+
+volumes: {}
