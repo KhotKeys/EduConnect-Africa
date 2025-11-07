@@ -1,0 +1,96 @@
+name: CI/CD Pipeline — Build, Push & Deploy to AWS
+
+on:
+  push:
+    branches:
+      - main   
+  workflow_dispatch:
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    outputs:
+      image: ${{ steps.prepare.outputs.image }}
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Ensure ECR repository exists
+        run: |
+          set -e
+          REPO="${{ secrets.REPOSITORY_NAME }}"
+          REGION="${{ secrets.AWS_REGION }}"
+          ACCOUNT="${{ secrets.AWS_ACCOUNT_ID }}"
+          echo "Checking ECR repo: $REPO"
+          aws ecr describe-repositories --repository-names "$REPO" >/dev/null 2>&1 || \
+            aws ecr create-repository --repository-name "$REPO" --image-scanning-configuration scanOnPush=true >/dev/null
+          echo "✅ Repository ready: $REPO"
+
+      - name: Prepare image tag
+        id: prepare
+        run: |
+          IMAGE="${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ secrets.REPOSITORY_NAME }}:${{ github.sha }}"
+          echo "image=$IMAGE" >> $GITHUB_OUTPUT
+          echo "Computed image tag: $IMAGE"
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: |
+            ${{ steps.prepare.outputs.image }}
+            ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ secrets.REPOSITORY_NAME }}:latest
+
+      - name: Output pushed image
+        run: |
+          # Use a block scalar to avoid quoting/indentation issues and ensure
+          # the templated value is expanded by Actions before the shell runs.
+          echo "✅ Pushed image: ${{ steps.prepare.outputs.image }}"
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      # ------------------ ECS Deployment ------------------
+      - name: Deploy to Amazon ECS
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: ${{ secrets.ECS_TASK_DEFINITION }}
+          service: ${{ secrets.ECS_SERVICE }}
+          cluster: ${{ secrets.ECS_CLUSTER }}
+          wait-for-service-stability: true
+
+      # ------------------ EC2 Deployment ------------------
+      - name: Deploy to EC2 instance
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            docker pull ${{ needs.build-and-push.outputs.image }}
+            docker stop app || true
+            docker rm app || true
+            docker run -d --name app -p 80:80 ${{ needs.build-and-push.outputs.image }}
+            echo "✅ Deployed on EC2 successfully!"
