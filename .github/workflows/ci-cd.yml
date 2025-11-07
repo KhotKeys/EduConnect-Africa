@@ -8,92 +8,94 @@ on:
   workflow_dispatch:
 
 jobs:
-  test:
-    name: Install, lint and test
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+  jobs:
+    build:
+      name: Build (install, lint, test, image)
+      runs-on: ubuntu-latest
+      outputs:
+        image: ${{ steps.set-image.outputs.image }}
+        push_to_ecr: ${{ steps.set-image.outputs.push_to_ecr }}
+      steps:
+        - name: Checkout
+          uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
+        - name: Setup Node.js
+          uses: actions/setup-node@v4
+          with:
+            node-version: '18'
 
-      - name: Install dependencies
-        run: |
-          if [ -f package-lock.json ]; then
-            npm ci
-          else
-            npm install
-          fi
+        - name: Install dependencies
+          run: |
+            if [ -f package-lock.json ]; then
+              npm ci
+            else
+              npm install
+            fi
 
-      - name: Run lint (non-fatal)
-        run: npm run lint || true
+        - name: Run lint (non-fatal)
+          run: npm run lint || true
 
-      - name: Run tests
-        run: npm test
+        - name: Run tests
+          run: npm test
 
-  build:
-    name: Build image (conditional push to ECR)
-    runs-on: ubuntu-latest
-    needs: test
-    outputs:
-      image: ${{ steps.set-image.outputs.image }}
-      push_to_ecr: ${{ steps.set-image.outputs.push_to_ecr }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+        - name: Prepare image variables
+          id: set-image
+          run: |
+            set -euo pipefail
+            # If ECR_REPO provided (full registry/repo), prefer that
+            if [ -n "${{ secrets.ECR_REPO }}" ]; then
+              echo "image=${{ secrets.ECR_REPO }}:latest" >> $GITHUB_OUTPUT
+              echo "push_to_ecr=true" >> $GITHUB_OUTPUT
+              exit 0
+            fi
 
-      - name: Prepare image variables
-        id: set-image
-        run: |
-          set -euo pipefail
-          # If ECR_REPO provided (full registry/repo), prefer that
-          if [ -n "${{ secrets.ECR_REPO }}" ]; then
-            echo "image=${{ secrets.ECR_REPO }}:latest" >> $GITHUB_OUTPUT
-            echo "push_to_ecr=true" >> $GITHUB_OUTPUT
-            exit 0
-          fi
+            # Otherwise, check for AWS_ACCOUNT_ID + AWS_REGION + REPOSITORY_NAME
+            if [ -n "${{ secrets.AWS_ACCOUNT_ID }}" ] && [ -n "${{ secrets.AWS_REGION }}" ] && [ -n "${{ secrets.REPOSITORY_NAME }}" ]; then
+              IMAGE="${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ secrets.REPOSITORY_NAME }}:latest"
+              echo "image=$IMAGE" >> $GITHUB_OUTPUT
+              echo "push_to_ecr=true" >> $GITHUB_OUTPUT
+              exit 0
+            fi
 
-          # Otherwise, check for AWS_ACCOUNT_ID + AWS_REGION + REPOSITORY_NAME
-          if [ -n "${{ secrets.AWS_ACCOUNT_ID }}" ] && [ -n "${{ secrets.AWS_REGION }}" ] && [ -n "${{ secrets.REPOSITORY_NAME }}" ]; then
-            IMAGE="${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ secrets.REPOSITORY_NAME }}:latest"
-            echo "image=$IMAGE" >> $GITHUB_OUTPUT
-            echo "push_to_ecr=true" >> $GITHUB_OUTPUT
-            exit 0
-          fi
+            # No ECR target; build locally only
+            echo "image=educonnect:latest" >> $GITHUB_OUTPUT
+            echo "push_to_ecr=false" >> $GITHUB_OUTPUT
 
-          # No ECR target; build locally only
-          echo "image=educonnect:latest" >> $GITHUB_OUTPUT
-          echo "push_to_ecr=false" >> $GITHUB_OUTPUT
+        - name: Configure AWS credentials (if configured)
+          if: ${{ steps.set-image.outputs.push_to_ecr == 'true' }}
+          uses: aws-actions/configure-aws-credentials@v4
+          with:
+            aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+            aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+            aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Configure AWS credentials (if configured)
-        if: ${{ steps.set-image.outputs.push_to_ecr == 'true' }}
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+        - name: Ensure ECR repository exists (if using AWS vars)
+          if: ${{ steps.set-image.outputs.push_to_ecr == 'true' && secrets.REPOSITORY_NAME }}
+          run: |
+            set -euo pipefail
+            python3 -V >/dev/null 2>&1 || sudo apt-get update -y && sudo apt-get install -y python3
+            pip3 --version >/dev/null 2>&1 || sudo apt-get install -y python3-pip
+            pip3 install --upgrade awscli
+            echo "Checking repository '${{ secrets.REPOSITORY_NAME }}' in ECR"
+            aws ecr describe-repositories --repository-names "${{ secrets.REPOSITORY_NAME }}" || aws ecr create-repository --repository-name "${{ secrets.REPOSITORY_NAME }}"
 
-      - name: Ensure ECR repository exists (if using AWS vars)
-        if: ${{ steps.set-image.outputs.push_to_ecr == 'true' && secrets.REPOSITORY_NAME }}
-        run: |
-          set -euo pipefail
-          python3 -V >/dev/null 2>&1 || sudo apt-get update -y && sudo apt-get install -y python3
-          pip3 --version >/dev/null 2>&1 || sudo apt-get install -y python3-pip
-          pip3 install --upgrade awscli
-          echo "Checking repository '${{ secrets.REPOSITORY_NAME }}' in ECR"
-          aws ecr describe-repositories --repository-names "${{ secrets.REPOSITORY_NAME }}" || aws ecr create-repository --repository-name "${{ secrets.REPOSITORY_NAME }}"
+        - name: Login to Amazon ECR (if configured)
+          if: ${{ steps.set-image.outputs.push_to_ecr == 'true' }}
+          uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Login to Amazon ECR (if configured)
-        if: ${{ steps.set-image.outputs.push_to_ecr == 'true' }}
-        uses: aws-actions/amazon-ecr-login@v2
+        - name: Debug image variables
+          run: |
+            echo "Computed image=${{ steps.set-image.outputs.image }}"
+            echo "Computed push_to_ecr=${{ steps.set-image.outputs.push_to_ecr }}"
 
-      - name: Debug image variables
-        run: |
-          echo "Computed image=${{ steps.set-image.outputs.image }}"
-          echo "Computed push_to_ecr=${{ steps.set-image.outputs.push_to_ecr }}"
+        - name: Build (and push if ECR configured)
+          uses: docker/build-push-action@v4
+          with:
+            context: .
+            file: Dockerfile
+            platforms: linux/amd64
+            push: ${{ steps.set-image.outputs.push_to_ecr == 'true' }}
+            tags: ${{ steps.set-image.outputs.image }}
 
       - name: Build (and push if ECR configured)
         uses: docker/build-push-action@v4
