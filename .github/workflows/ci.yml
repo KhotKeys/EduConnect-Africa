@@ -35,11 +35,18 @@ jobs:
       - name: Build Docker image
         run: |
           echo "Building image: ${{ secrets.ECR_REPO }}:latest"
-          # Explicitly reference the Dockerfile in the repo root to avoid "no such file" errors
-          if [ ! -f Dockerfile ]; then
-            echo "ERROR: Dockerfile not found in the repository root. Aborting."; exit 1
+          # Auto-detect Dockerfile path (supports Dockerfile in subfolders)
+          DOCKERFILE_PATH=$(find . -type f -name Dockerfile -print | head -n 1 || true)
+          if [ -z "$DOCKERFILE_PATH" ]; then
+            echo "ERROR: No Dockerfile found in repository. Aborting."; exit 1
           fi
-          docker build -f ./Dockerfile -t ${{ secrets.ECR_REPO }}:latest .
+          echo "Found Dockerfile at: $DOCKERFILE_PATH"
+          CONTEXT_DIR=$(dirname "$DOCKERFILE_PATH")
+          if [ "$CONTEXT_DIR" = "." ]; then
+            CONTEXT_DIR="."
+          fi
+          echo "Using build context: $CONTEXT_DIR"
+          docker build -f "$DOCKERFILE_PATH" -t ${{ secrets.ECR_REPO }}:latest "$CONTEXT_DIR"
 
       - name: Push Docker image to Amazon ECR
         run: |
