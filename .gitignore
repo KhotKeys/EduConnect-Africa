@@ -116,12 +116,6 @@ ENV/
 env.bak/
 venv.bak/
 
-# Docker
-.dockerignore
-Dockerfile
-docker-compose.yml
-.docker/
-
 # Terraform
 *.tfstate
 *.tfstate.*
