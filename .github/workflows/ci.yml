@@ -88,21 +88,64 @@ jobs:
           username: ubuntu
           key: ${{ secrets.SSH_PRIVATE_KEY_EC2 }}
           script: |
-            # Ensure Docker is installed (Ubuntu/Debian). If docker is missing, try to install it.
-            if ! command -v docker >/dev/null 2>&1; then
-              echo "Docker not found on remote host — attempting to install (requires sudo)..."
-              sudo apt-get update
-              sudo apt-get install -y ca-certificates curl gnupg lsb-release
-              sudo mkdir -p /etc/apt/keyrings
-              curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-              echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-              sudo apt-get update
-              sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin || sudo apt-get install -y docker.io docker-compose
-              sudo systemctl enable --now docker || true
-            else
-              echo "Docker is already installed on remote host."
-            fi
-            # Use sudo to run docker compose to avoid permission issues
-            sudo docker compose pull
-            sudo docker compose up -d --force-recreate
+              # Ensure Docker is installed (Ubuntu/Debian). If docker is missing, try to install it.
+              if ! command -v docker >/dev/null 2>&1; then
+                echo "Docker not found on remote host — attempting to install (requires sudo)..."
+                sudo apt-get update
+                sudo apt-get install -y ca-certificates curl gnupg lsb-release
+                sudo mkdir -p /etc/apt/keyrings
+                curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+                echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+                sudo apt-get update
+                sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin || sudo apt-get install -y docker.io docker-compose
+                sudo systemctl enable --now docker || true
+              else
+                echo "Docker is already installed on remote host."
+              fi
+
+              # Ensure AWS CLI is available for ECR login
+              if ! command -v aws >/dev/null 2>&1; then
+                echo "AWS CLI not found on remote host — installing awscli..."
+                sudo apt-get update
+                sudo apt-get install -y awscli || (sudo apt-get install -y python3-pip && sudo pip3 install awscli)
+              else
+                echo "AWS CLI already installed."
+              fi
+
+              # Export AWS credentials from GitHub secrets for ECR login (these are masked in logs)
+              export AWS_ACCESS_KEY_ID='${{ secrets.AWS_ACCESS_KEY_ID }}'
+              export AWS_SECRET_ACCESS_KEY='${{ secrets.AWS_SECRET_ACCESS_KEY }}'
+              export AWS_DEFAULT_REGION='${{ secrets.AWS_REGION }}'
+
+              # Extract ECR registry (registry URI before the first slash)
+              REGISTRY=$(echo "${{ secrets.ECR_REPO }}" | cut -d'/' -f1)
+              echo "ECR registry (parsed): $REGISTRY"
+              echo "aws version:"; aws --version || true
+              echo "Verifying AWS credentials via STS..."
+              if ! aws sts get-caller-identity --output text >/dev/null 2>&1; then
+                echo "ERROR: AWS credentials appear invalid or missing on remote host (sts get-caller-identity failed)"
+                aws sts get-caller-identity --output text || true
+                exit 1
+              fi
+              echo "Attempting ECR docker login..."
+              if ! aws ecr get-login-password --region "${{ secrets.AWS_REGION }}" | sudo docker login --username AWS --password-stdin "$REGISTRY"; then
+                echo "ERROR: docker login to ECR failed"
+                echo "Contents of /home/ubuntu/.docker/config.json (if present):"; sudo cat /home/ubuntu/.docker/config.json || true
+                exit 1
+              fi
+              echo "Docker login to ECR succeeded"
+              # Ensure root also has docker credentials (some systems use root's config)
+              if [ -f /home/ubuntu/.docker/config.json ]; then
+                echo "Copying /home/ubuntu/.docker/config.json to /root/.docker/config.json"
+                sudo mkdir -p /root/.docker
+                sudo cp /home/ubuntu/.docker/config.json /root/.docker/config.json || true
+                sudo chown root:root /root/.docker/config.json || true
+                echo "Root docker config content:"; sudo cat /root/.docker/config.json || true
+              else
+                echo "/home/ubuntu/.docker/config.json not found; listing /home/ubuntu/.docker:"; ls -la /home/ubuntu/.docker || true
+              fi
+
+              # Use sudo to run docker compose to avoid permission issues
+              sudo docker compose pull
+              sudo docker compose up -d --force-recreate
 

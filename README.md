@@ -312,39 +312,41 @@ CI details:
 Notes / next steps for submission evidence:
 - Enable branch protection rules on `main` and require the CI checks to pass before merging (needs to be configured in the GitHub repo settings).
 - Create a feature branch, open a pull request to `main`, and verify CI runs (you should have at least one failing and then fixed run as required by the assignment).
+CI details:
+- A GitHub Actions workflow is configured at `.github/workflows/ci.yml`.
+- The workflow runs lint, tests, builds a Docker image, pushes it to Amazon ECR (if configured), and can deploy to an EC2 host via SSH.
 
-## ☁️ Deploying to Firebase and AWS
+CI / Deployment secrets (required)
+Before you can run the full pipeline and deploy to EC2, add these repository secrets (Settings → Secrets and variables → Actions):
 
-This project can now be deployed to both Firebase Hosting and AWS. A GitHub Actions workflow at `.github/workflows/deploy.yml` runs on pushes to `main` and will:
+- `AWS_ACCESS_KEY_ID` — AWS key ID with ECR permissions
+- `AWS_SECRET_ACCESS_KEY` — AWS secret key
+- `AWS_REGION` — AWS region (for example: eu-north-1)
+- `ECR_REPO` — full ECR repository URI (example: 012345678901.dkr.ecr.us-east-1.amazonaws.com/edulearn/web)
+- `EC2_HOST` — public DNS or IP of your EC2 instance
+- `SSH_PRIVATE_KEY_EC2` — PEM private key to SSH into EC2 (keep private)
 
-- Deploy to Firebase Hosting using the `FIREBASE_TOKEN` secret.
-- Sync the `frontend/` directory to an AWS S3 bucket using `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, and `AWS_S3_BUCKET` secrets.
-- Optionally push a Docker image to ECR when `AWS_ECR_REPOSITORY` and `AWS_ACCOUNT_ID` are set in secrets.
+Notes about the current deploy flow
+- The workflow builds the Docker image and pushes it to the `ECR_REPO` tag `:latest`.
+- Deploy runs an SSH action that will:
+   - install Docker on the remote host (Ubuntu/Debian flow) if missing,
+   - install the AWS CLI if missing,
+   - use the provided AWS creds to log into ECR on the remote host, then run `docker compose pull` and `docker compose up -d --force-recreate`.
 
-Important: you must add the following repository secrets (Settings → Secrets → Actions) before the workflow can deploy:
+Security & best practices
+- For production, prefer attaching an IAM role to the EC2 instance with ECR pull permissions instead of exporting AWS credentials to the host.
+- Keep secrets in GitHub Actions secrets only (do NOT commit keys or tokens to the repo).
 
-- `FIREBASE_TOKEN` — a CI token created with `firebase login:ci` (or using service account credentials).
-- `AWS_ACCESS_KEY_ID` — your AWS access key id with permissions to S3 (and ECR if used).
-- `AWS_SECRET_ACCESS_KEY` — your AWS secret access key.
-- `AWS_REGION` — the AWS region for your bucket/ECR (e.g., us-east-1).
-- `AWS_S3_BUCKET` — name of the S3 bucket to host the static site.
-- (Optional) `AWS_ECR_REPOSITORY` — repository name for ECR image (e.g., edulearn).
-- (Optional) `AWS_ACCOUNT_ID` — your AWS account ID (needed for ECR push).
+Triggering the pipeline
+- Push to the `main` branch or open a PR to `main` to trigger the CI workflow.
+- You can re-run jobs from the Actions UI or force a run by pushing an empty commit:
 
-Quick steps to create an S3 bucket for static hosting:
+```powershell
+git commit --allow-empty -m "ci: rerun workflow after deploy fixes"
+git push origin main
+```
 
-1. In the AWS Console → S3 → Create bucket.
-2. Choose a globally unique bucket name and same region as `AWS_REGION` secret.
-3. Uncheck "Block all public access" if you want public read access, and set appropriate bucket policy. (Alternatively use CloudFront for secure CDN distribution.)
-4. Save the bucket name as the `AWS_S3_BUCKET` repository secret.
+If deploy fails with auth errors when pulling from ECR, verify that `ECR_REPO` and the `AWS_*` secrets are correct and that the IAM user has ECR permissions (e.g., `ecr:GetAuthorizationToken`, `ecr:BatchGetImage`, `ecr:BatchCheckLayerAvailability`).
 
-How to generate a `FIREBASE_TOKEN` for CI:
-
-1. Install Firebase CLI locally: `npm install -g firebase-tools`.
-2. Run: `firebase login:ci` and follow the browser auth flow.
-3. Copy the token output and add it to the `FIREBASE_TOKEN` repository secret.
-
-Notes and security:
-- Keep secrets private. Do not commit any private keys or tokens to the repo.
-- For production-grade deployments you may want to use more secure patterns (OIDC, short-lived credentials, CloudFront with origin restrict access, etc.).
+If your EC2 instance runs a non-Ubuntu OS (Amazon Linux, CentOS, etc.), the remote install commands will need to be adjusted — tell me the distro and I'll update the workflow accordingly.
 
