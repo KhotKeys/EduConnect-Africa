@@ -25,10 +25,21 @@ jobs:
       - name: Login to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v2
 
+      - name: Debug: show workspace files
+        run: |
+          echo "Working directory: $(pwd)"
+          echo "List root files:"; ls -la
+          echo "Find Dockerfile paths:"; find . -maxdepth 3 -type f -name Dockerfile -print || true
+          echo "If Dockerfile exists, show first 200 lines:"; if [ -f Dockerfile ]; then sed -n '1,200p' Dockerfile; else echo 'Dockerfile not found at repo root'; fi
+
       - name: Build Docker image
         run: |
           echo "Building image: ${{ secrets.ECR_REPO }}:latest"
-          docker build -t ${{ secrets.ECR_REPO }}:latest .
+          # Explicitly reference the Dockerfile in the repo root to avoid "no such file" errors
+          if [ ! -f Dockerfile ]; then
+            echo "ERROR: Dockerfile not found in the repository root. Aborting."; exit 1
+          fi
+          docker build -f ./Dockerfile -t ${{ secrets.ECR_REPO }}:latest .
 
       - name: Push Docker image to Amazon ECR
         run: |
