@@ -24,7 +24,6 @@ jobs:
           test -n "${{ secrets.ECR_REPO }}" || (echo "MISSING: ECR_REPO"; exit 1)
           test -n "${{ secrets.EC2_HOST }}" || (echo "MISSING: EC2_HOST"; exit 1)
           test -n "${{ secrets.SSH_PRIVATE_KEY_EC2 }}" || (echo "MISSING: SSH_PRIVATE_KEY_EC2"; exit 1)
-          test -n "${{ secrets.EC2_USER }}" || (echo "MISSING: EC2_USER"; exit 1)
           echo "All required secrets appear to be set."
 
       - name: Configure AWS credentials
@@ -86,7 +85,7 @@ jobs:
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
+          username: ubuntu
           key: ${{ secrets.SSH_PRIVATE_KEY_EC2 }}
           script: |
             docker compose pull
