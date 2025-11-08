@@ -15,6 +15,18 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Check required secrets
+        run: |
+          echo "Verifying required repository secrets are set..."
+          test -n "${{ secrets.AWS_ACCESS_KEY_ID }}" || (echo "MISSING: AWS_ACCESS_KEY_ID"; exit 1)
+          test -n "${{ secrets.AWS_SECRET_ACCESS_KEY }}" || (echo "MISSING: AWS_SECRET_ACCESS_KEY"; exit 1)
+          test -n "${{ secrets.AWS_REGION }}" || (echo "MISSING: AWS_REGION"; exit 1)
+          test -n "${{ secrets.ECR_REPO }}" || (echo "MISSING: ECR_REPO"; exit 1)
+          test -n "${{ secrets.EC2_HOST }}" || (echo "MISSING: EC2_HOST"; exit 1)
+          test -n "${{ secrets.SSH_PRIVATE_KEY_EC2 }}" || (echo "MISSING: SSH_PRIVATE_KEY_EC2"; exit 1)
+          test -n "${{ secrets.EC2_USER }}" || (echo "MISSING: EC2_USER"; exit 1)
+          echo "All required secrets appear to be set."
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -25,12 +37,19 @@ jobs:
       - name: Login to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Debug: show workspace files
+      - name: "Debug: show workspace files"
         run: |
           echo "Working directory: $(pwd)"
-          echo "List root files:"; ls -la
-          echo "Find Dockerfile paths:"; find . -maxdepth 3 -type f -name Dockerfile -print || true
-          echo "If Dockerfile exists, show first 200 lines:"; if [ -f Dockerfile ]; then sed -n '1,200p' Dockerfile; else echo 'Dockerfile not found at repo root'; fi
+          echo "List root files:"
+          ls -la
+          echo "Find Dockerfile paths:"
+          find . -maxdepth 3 -type f -name Dockerfile -print || true
+          echo "If Dockerfile exists, show first 200 lines:"
+          if [ -f Dockerfile ]; then
+            sed -n '1,200p' Dockerfile
+          else
+            echo 'Dockerfile not found at repo root'
+          fi
 
       - name: Build Docker image
         run: |
@@ -67,7 +86,7 @@ jobs:
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.EC2_HOST }}
-          username: ubuntu
+          username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY_EC2 }}
           script: |
             docker compose pull
