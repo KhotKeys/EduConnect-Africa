@@ -1,0 +1,160 @@
+name: CI push to ECR Pipeline
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  docker-build-push:
+    name: Build & push to ECR
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check required secrets
+        run: |
+          echo "Verifying required repository secrets are set..."
+          test -n "${{ secrets.AWS_ACCESS_KEY_ID }}" || (echo "MISSING: AWS_ACCESS_KEY_ID"; exit 1)
+          test -n "${{ secrets.AWS_SECRET_ACCESS_KEY }}" || (echo "MISSING: AWS_SECRET_ACCESS_KEY"; exit 1)
+          test -n "${{ secrets.AWS_REGION }}" || (echo "MISSING: AWS_REGION"; exit 1)
+          test -n "${{ secrets.ECR_REPO }}" || (echo "MISSING: ECR_REPO"; exit 1)
+          test -n "${{ secrets.EC2_HOST }}" || (echo "MISSING: EC2_HOST"; exit 1)
+          test -n "${{ secrets.SSH_PRIVATE_KEY_EC2 }}" || (echo "MISSING: SSH_PRIVATE_KEY_EC2"; exit 1)
+          echo "All required secrets appear to be set."
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: "Debug: show workspace files"
+        run: |
+          echo "Working directory: $(pwd)"
+          echo "List root files:"
+          ls -la
+          echo "Find Dockerfile paths:"
+          find . -maxdepth 3 -type f -name Dockerfile -print || true
+          echo "If Dockerfile exists, show first 200 lines:"
+          if [ -f Dockerfile ]; then
+            sed -n '1,200p' Dockerfile
+          else
+            echo 'Dockerfile not found at repo root'
+          fi
+
+      - name: Build Docker image
+        run: |
+          echo "Building image: ${{ secrets.ECR_REPO }}:latest"
+          # Auto-detect Dockerfile path (supports Dockerfile in subfolders)
+          DOCKERFILE_PATH=$(find . -type f -name Dockerfile -print | head -n 1 || true)
+          if [ -z "$DOCKERFILE_PATH" ]; then
+            echo "ERROR: No Dockerfile found in repository. Aborting."; exit 1
+          fi
+          echo "Found Dockerfile at: $DOCKERFILE_PATH"
+          CONTEXT_DIR=$(dirname "$DOCKERFILE_PATH")
+          if [ "$CONTEXT_DIR" = "." ]; then
+            CONTEXT_DIR="."
+          fi
+          echo "Using build context: $CONTEXT_DIR"
+          docker build -f "$DOCKERFILE_PATH" -t ${{ secrets.ECR_REPO }}:latest "$CONTEXT_DIR"
+
+      - name: Push Docker image to Amazon ECR
+        run: |
+          echo "Pushing image: ${{ secrets.ECR_REPO }}:latest"
+          docker push ${{ secrets.ECR_REPO }}:latest
+
+      - name: Output pushed image
+        run: |
+          echo "Pushed image: ${{ secrets.ECR_REPO }}:latest"
+
+  deploy:
+    name: Deploy to EC2 via SSH
+    runs-on: ubuntu-latest
+    needs: docker-build-push
+
+    steps:
+      - name: Deploy via SSH to EC2
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.SSH_PRIVATE_KEY_EC2 }}
+          script: |
+              # Ensure Docker is installed (Ubuntu/Debian). If docker is missing, try to install it.
+              if ! command -v docker >/dev/null 2>&1; then
+                echo "Docker not found on remote host — attempting to install (requires sudo)..."
+                sudo apt-get update
+                sudo apt-get install -y ca-certificates curl gnupg lsb-release
+                sudo mkdir -p /etc/apt/keyrings
+                curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+                echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+                sudo apt-get update
+                sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin || sudo apt-get install -y docker.io docker-compose
+                sudo systemctl enable --now docker || true
+              else
+                echo "Docker is already installed on remote host."
+              fi
+
+              # Ensure AWS CLI v2 is available for ECR login (use official installer to avoid pip/apt issues)
+              if ! command -v aws >/dev/null 2>&1; then
+                echo "AWS CLI not found on remote host — installing AWS CLI v2 (official bundle)..."
+                sudo apt-get update || true
+                sudo apt-get install -y unzip curl || true
+                curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscliv2.zip || { echo "ERROR: failed to download AWS CLI v2 installer"; exit 1; }
+                sudo unzip -o /tmp/awscliv2.zip -d /tmp || { echo "ERROR: unzip failed"; exit 1; }
+                sudo /tmp/aws/install --update || sudo /tmp/aws/install || { echo "ERROR: aws install failed"; exit 1; }
+                if ! command -v aws >/dev/null 2>&1; then
+                  echo "ERROR: aws binary not found after install"; exit 1
+                fi
+                echo "AWS CLI installed:"; aws --version || true
+              else
+                echo "AWS CLI already installed."
+              fi
+
+              # Configure AWS credentials using aws configure set (avoids heredocs in YAML)
+              export AWS_ACCESS_KEY_ID='${{ secrets.AWS_ACCESS_KEY_ID }}'
+              export AWS_SECRET_ACCESS_KEY='${{ secrets.AWS_SECRET_ACCESS_KEY }}'
+              export AWS_DEFAULT_REGION='${{ secrets.AWS_REGION }}'
+              aws configure set aws_access_key_id "$AWS_ACCESS_KEY_ID" --profile default || true
+              aws configure set aws_secret_access_key "$AWS_SECRET_ACCESS_KEY" --profile default || true
+              aws configure set region "$AWS_DEFAULT_REGION" --profile default || true
+
+              # Extract ECR registry (registry URI before the first slash)
+              REGISTRY=$(echo "${{ secrets.ECR_REPO }}" | cut -d'/' -f1)
+              echo "ECR registry (parsed): $REGISTRY"
+              echo "aws version:"; aws --version || true
+              echo "Verifying AWS credentials via STS..."
+              if ! aws sts get-caller-identity --output text >/dev/null 2>&1; then
+                echo "ERROR: AWS credentials appear invalid or missing on remote host (sts get-caller-identity failed)"
+                aws sts get-caller-identity --output text || true
+                exit 1
+              fi
+              echo "Attempting ECR docker login..."
+              if ! aws ecr get-login-password --region "${{ secrets.AWS_REGION }}" | sudo docker login --username AWS --password-stdin "$REGISTRY"; then
+                echo "ERROR: docker login to ECR failed"
+                echo "Contents of /home/ubuntu/.docker/config.json (if present):"; sudo cat /home/ubuntu/.docker/config.json || true
+                exit 1
+              fi
+              echo "Docker login to ECR succeeded"
+              # Ensure root also has docker credentials (some systems use root's config)
+              if [ -f /home/ubuntu/.docker/config.json ]; then
+                echo "Copying /home/ubuntu/.docker/config.json to /root/.docker/config.json"
+                sudo mkdir -p /root/.docker
+                sudo cp /home/ubuntu/.docker/config.json /root/.docker/config.json || true
+                sudo chown root:root /root/.docker/config.json || true
+                echo "Root docker config content:"; sudo cat /root/.docker/config.json || true
+              else
+                echo "/home/ubuntu/.docker/config.json not found; listing /home/ubuntu/.docker:"; ls -la /home/ubuntu/.docker || true
+              fi
+
+              # Use sudo to run docker compose to avoid permission issues
+              sudo docker compose pull
+              sudo docker compose up -d --force-recreate
