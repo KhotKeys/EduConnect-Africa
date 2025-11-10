@@ -350,3 +350,5 @@ If deploy fails with auth errors when pulling from ECR, verify that `ECR_REPO` a
 
 If your EC2 instance runs a non-Ubuntu OS (Amazon Linux, CentOS, etc.), the remote install commands will need to be adjusted — tell me the distro and I'll update the workflow accordingly.
 
+
+\n<!-- ci-demo: create PR to trigger CI -->
