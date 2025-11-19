@@ -118,9 +118,9 @@ EduLearn addresses these gaps by providing a unified platform that democratizes 
 
 4. **Access the application**
    - Open your web browser
-   - Navigate to `http://localhost:8000`
-   - For the landing page: `http://localhost:8000/landing.html`
-   - For the student platform: `http://localhost:8000/student-platform.html`
+   - Navigate to: http://localhost or http://localhost:80
+   - For the landing page: `http://localhost:80/landing.html`
+   - For the student platform: `http://localhost:80/student-platform.html`
 
 ### Alternative Setup (Using Node.js)
 ```bash
