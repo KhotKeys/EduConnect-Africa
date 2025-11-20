@@ -70,30 +70,41 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - name: Setup Python
-        uses: actions/setup-python@v4
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.2.0
         with:
-          python-version: '3.11'
-      
-      - name: Install Ansible
-        run: |
-          pip install ansible boto3 botocore
-      
-      - name: Configure SSH key
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY_EC2 }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
-      
-      - name: Run Ansible deployment
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
-        run: |
-          cd ansible
-          ansible-playbook -i inventory/production.ini deploy.yml \
-            -e "ecr_repo=${{ secrets.ECR_REPO }}" \
-            -e "image_tag=latest" \
-            -e "aws_region=${{ secrets.AWS_REGION }}"
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.SSH_PRIVATE_KEY_EC2 }}
+          script: |
+            # Configure AWS credentials
+            export AWS_ACCESS_KEY_ID='${{ secrets.AWS_ACCESS_KEY_ID }}'
+            export AWS_SECRET_ACCESS_KEY='${{ secrets.AWS_SECRET_ACCESS_KEY }}'
+            export AWS_DEFAULT_REGION='${{ secrets.AWS_REGION }}'
+            
+            # Login to ECR
+            REGISTRY=$(echo "${{ secrets.ECR_REPO }}" | cut -d'/' -f1)
+            aws ecr get-login-password --region "${{ secrets.AWS_REGION }}" | sudo docker login --username AWS --password-stdin "$REGISTRY"
+            
+            # Create app directory
+            sudo mkdir -p /opt/edulearn
+            cd /opt/edulearn
+            
+            # Create docker-compose.yml
+            sudo tee docker-compose.yml > /dev/null <<EOF
+            version: '3.8'
+            services:
+              app:
+                image: ${{ secrets.ECR_REPO }}:latest
+                ports:
+                  - "80:80"
+                environment:
+                  - NODE_ENV=production
+                restart: unless-stopped
+            EOF
+            
+            # Deploy
+            sudo docker compose pull
+            sudo docker compose up -d --force-recreate
+            sudo docker compose ps

@@ -162,6 +162,27 @@ jobs:
                 echo "/home/ubuntu/.docker/config.json not found; listing /home/ubuntu/.docker:"; ls -la /home/ubuntu/.docker || true
               fi
 
-              # Use sudo to run docker compose to avoid permission issues
+              # Create app directory and docker-compose.yml
+              sudo mkdir -p /opt/edulearn
+              cd /opt/edulearn
+              
+              # Create docker-compose.yml
+              sudo tee docker-compose.yml > /dev/null <<EOF
+version: '3.8'
+services:
+  app:
+    image: ${{ secrets.ECR_REPO }}:latest
+    ports:
+      - "80:80"
+    environment:
+      - NODE_ENV=production
+    restart: unless-stopped
+EOF
+              
+              # Pull and deploy
               sudo docker compose pull
               sudo docker compose up -d --force-recreate
+              
+              # Show status
+              echo "Deployment complete!"
+              sudo docker compose ps
