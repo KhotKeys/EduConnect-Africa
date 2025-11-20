@@ -1,14 +1,11 @@
 variable "vpc_id" {
-  description = "VPC ID"
-  type        = string
+  type = string
 }
 
 variable "environment" {
-  description = "Environment name"
-  type        = string
+  type = string
 }
 
 variable "project_name" {
-  description = "Project name"
-  type        = string
+  type = string
 }

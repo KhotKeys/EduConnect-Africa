@@ -1,10 +1,9 @@
 resource "aws_security_group" "bastion" {
-  name        = "${var.project_name}-bastion-sg"
+  name        = "${var.project_name}-bastion-sg-${var.environment}"
   description = "Security group for bastion host"
   vpc_id      = var.vpc_id
 
   ingress {
-    description = "SSH from anywhere"
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
@@ -12,7 +11,6 @@ resource "aws_security_group" "bastion" {
   }
 
   egress {
-    description = "Allow all outbound"
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
@@ -20,18 +18,16 @@ resource "aws_security_group" "bastion" {
   }
 
   tags = {
-    Name        = "${var.project_name}-bastion-sg"
-    Environment = var.environment
+    Name = "${var.project_name}-bastion-sg-${var.environment}"
   }
 }
 
 resource "aws_security_group" "app" {
-  name        = "${var.project_name}-app-sg"
+  name        = "${var.project_name}-app-sg-${var.environment}"
   description = "Security group for application server"
   vpc_id      = var.vpc_id
 
   ingress {
-    description     = "SSH from bastion"
     from_port       = 22
     to_port         = 22
     protocol        = "tcp"
@@ -39,7 +35,6 @@ resource "aws_security_group" "app" {
   }
 
   ingress {
-    description = "HTTP from anywhere"
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
@@ -47,7 +42,6 @@ resource "aws_security_group" "app" {
   }
 
   ingress {
-    description = "HTTPS from anywhere"
     from_port   = 443
     to_port     = 443
     protocol    = "tcp"
@@ -55,7 +49,6 @@ resource "aws_security_group" "app" {
   }
 
   egress {
-    description = "Allow all outbound"
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
@@ -63,18 +56,16 @@ resource "aws_security_group" "app" {
   }
 
   tags = {
-    Name        = "${var.project_name}-app-sg"
-    Environment = var.environment
+    Name = "${var.project_name}-app-sg-${var.environment}"
   }
 }
 
 resource "aws_security_group" "db" {
-  name        = "${var.project_name}-db-sg"
+  name        = "${var.project_name}-db-sg-${var.environment}"
   description = "Security group for database"
   vpc_id      = var.vpc_id
 
   ingress {
-    description     = "PostgreSQL from app server"
     from_port       = 5432
     to_port         = 5432
     protocol        = "tcp"
@@ -82,7 +73,6 @@ resource "aws_security_group" "db" {
   }
 
   egress {
-    description = "Allow all outbound"
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
@@ -90,7 +80,6 @@ resource "aws_security_group" "db" {
   }
 
   tags = {
-    Name        = "${var.project_name}-db-sg"
-    Environment = var.environment
+    Name = "${var.project_name}-db-sg-${var.environment}"
   }
 }

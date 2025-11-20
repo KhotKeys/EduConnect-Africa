@@ -121,9 +121,14 @@ venv.bak/
 *.tfstate.*
 .terraform/
 .terraform.lock.hcl
+terraform.tfvars
+*.tfplan
+terraform/outputs.txt
 
 # AWS
 .aws/
+*.pem
+*.key
 
 # Azure
 .azure/
@@ -211,3 +216,10 @@ backend/node_modules/
 .env.development.local
 .env.test.local
 .env.production.local
+
+# Ansible
+ansible/*.retry
+ansible/.vault_pass
+
+# Outputs
+outputs.txt
