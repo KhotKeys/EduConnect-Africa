@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json.schemastore.org/package.json",
+  "name": "edulearn",
+  "version": "1.0.0",
+  "description": "Empowering African Students Through Digital Learning",
+  "main": "frontend/index.html",
+  "scripts": {
+    "start": "serve frontend -p 3000",
+    "dev": "serve frontend -p 3000 -s",
+    "setup": "node setup.js",
+    "deploy": "firebase deploy",
+    "deploy:hosting": "firebase deploy --only hosting",
+    "deploy:firestore": "firebase deploy --only firestore",
+    "deploy:storage": "firebase deploy --only storage",
+    "emulators": "firebase emulators:start",
+    "build": "echo 'No build step required for static files'",
+    "test": "jest",
+    "lint": "eslint . --ext .js --max-warnings=0"
+  },
+  "keywords": [
+    "education",
+    "africa",
+    "learning",
+    "students",
+    "exam-preparation",
+    "firebase",
+    "pwa"
+  ],
+  "author": "EduLearn Team",
+  "license": "MIT",
+  "devDependencies": {
+    "serve": "^14.2.5",
+    "eslint": "^8.50.0",
+    "jest": "^29.6.0"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/edulearn.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-username/edulearn/issues"
+  },
+  "homepage": "https://github.com/your-username/edulearn#readme"
+}

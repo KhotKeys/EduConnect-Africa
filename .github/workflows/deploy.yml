@@ -1,0 +1,48 @@
+name: CI / Deploy
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install pip packages
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install ansible
+
+      - name: Write SSH key
+        env:
+          SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY_EC2 }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_KEY" > ~/.ssh/educonnect-key.pem
+          chmod 600 ~/.ssh/educonnect-key.pem
+
+      - name: Install Ansible collections
+        run: |
+          cd ansible
+          ansible-galaxy collection install -r requirements.yml
+
+      - name: Run Ansible (dry-run)
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
+        run: |
+          cd ansible
+          ANSIBLE_HOST_KEY_CHECKING=False \
+          ansible-playbook -i inventory/hosts.ini deploy.yml \
+            --private-key ~/.ssh/educonnect-key.pem \
+            --check --diff -u ubuntu \
+            -e "ecr_repo=${{ secrets.ECR_REPO }} aws_region=${{ secrets.AWS_REGION }} ec2_host=${{ secrets.EC2_HOST }} image_tag=latest" \
+            -vvv

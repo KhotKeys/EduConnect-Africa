@@ -1,0 +1,82 @@
+---
+- name: Deploy EduLearn Application
+  hosts: app_server
+  become: yes
+  vars:
+    ecr_repo: "{{ ecr_repo }}"
+    image_tag: "{{ image_tag | default('latest') }}"
+    aws_region: "{{ aws_region }}"
+    app_dir: /opt/app
+
+  tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Install required packages
+      apt:
+        name:
+          - docker.io
+          - docker-compose
+          - python3-pip
+          - awscli
+        state: present
+
+    - name: Start Docker service
+      systemd:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Add ubuntu user to docker group
+      user:
+        name: ubuntu
+        groups: docker
+        append: yes
+
+    - name: Create app directory
+      file:
+        path: "{{ app_dir }}"
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+        mode: '0755'
+
+    - name: Login to ECR
+      shell: |
+        aws ecr get-login-password --region {{ aws_region }} | docker login --username AWS --password-stdin {{ ecr_repo | regex_replace('/.*$', '') }}
+      environment:
+        AWS_ACCESS_KEY_ID: "{{ lookup('env', 'AWS_ACCESS_KEY_ID') }}"
+        AWS_SECRET_ACCESS_KEY: "{{ lookup('env', 'AWS_SECRET_ACCESS_KEY') }}"
+        AWS_DEFAULT_REGION: "{{ aws_region }}"
+
+    - name: Pull latest Docker image
+      docker_image:
+        name: "{{ ecr_repo }}:{{ image_tag }}"
+        source: pull
+        force_source: yes
+
+    - name: Create docker-compose file
+      copy:
+        dest: "{{ app_dir }}/docker-compose.yml"
+        content: |
+          version: '3.8'
+          services:
+            app:
+              image: {{ ecr_repo }}:{{ image_tag }}
+              ports:
+                - "80:80"
+              environment:
+                - NODE_ENV=production
+              restart: unless-stopped
+
+    - name: Deploy application with docker-compose (v2)
+      community.docker.docker_compose_v2:
+        project_src: "{{ app_dir }}"
+        state: present
+        pull: true
+        recreate: true
+
+
+
