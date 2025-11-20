@@ -1,0 +1,80 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Users collection
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read: if request.auth != null && 
+        (resource.data.userType == 'teacher' || 
+         request.auth.uid in resource.data.parents);
+    }
+    
+    // Resources collection
+    match /resources/{resourceId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && 
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userType in ['teacher', 'admin']);
+      allow update, delete: if request.auth != null && 
+        (resource.data.uploadedBy == request.auth.uid || 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userType == 'admin');
+    }
+    
+    // Study groups collection
+    match /studyGroups/{groupId} {
+      allow read: if request.auth != null && 
+        (request.auth.uid in resource.data.members || 
+         resource.data.isPublic == true);
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null && 
+        (resource.data.createdBy == request.auth.uid || 
+         request.auth.uid in resource.data.admins);
+    }
+    
+    // Progress tracking collection
+    match /progress/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read: if request.auth != null && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userType in ['teacher', 'parent'] &&
+        request.auth.uid in get(/databases/$(database)/documents/users/$(userId)).data.parents;
+    }
+    
+    // Quiz results collection
+    match /quizResults/{resultId} {
+      allow read, write: if request.auth != null && 
+        resource.data.userId == request.auth.uid;
+      allow read: if request.auth != null && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userType in ['teacher', 'admin'];
+    }
+    
+    // Discussion forums collection
+    match /forums/{forumId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null && 
+        (resource.data.authorId == request.auth.uid || 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userType == 'admin');
+    }
+    
+    // Comments on forum posts
+    match /forums/{forumId}/comments/{commentId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null && 
+        (resource.data.authorId == request.auth.uid || 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userType == 'admin');
+    }
+    
+    // Notifications collection
+    match /notifications/{notificationId} {
+      allow read, write: if request.auth != null && 
+        resource.data.userId == request.auth.uid;
+    }
+    
+    // Admin settings collection
+    match /adminSettings/{settingId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userType == 'admin';
+    }
+  }
+}
