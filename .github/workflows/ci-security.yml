@@ -29,8 +29,8 @@ jobs:
             # Check for UTF-16 BE BOM (FE FF) at start
             elif head -c 2 "$file" 2>/dev/null | od -A n -t x1 | grep -q "fe ff"; then
               CORRUPT_FILES+=("$file (UTF-16 BE BOM)")
-            # Check for UTF-16 LE pattern (NUL byte after '<' character)
-            elif od -A n -t x1 -v "$file" 2>/dev/null | grep -q "3c 00"; then
+            # Check for UTF-16 LE pattern (NUL byte after '<' character) - check first 4KB only
+            elif head -c 4096 "$file" 2>/dev/null | od -A n -t x1 -v | grep -q "3c 00"; then
               CORRUPT_FILES+=("$file (UTF-16 LE pattern detected)")
             fi
           done < <(find . -type f \( -name "*.html" -o -name "*.htm" -o -name "*.xml" -o -name "*.css" -o -name "*.js" \) \

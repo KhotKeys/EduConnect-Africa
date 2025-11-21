@@ -34,15 +34,25 @@ if ($ansible) {
     & ansible --version
 } else {
     Write-Host "❌ Ansible not found in PATH. Trying to locate..." -ForegroundColor Yellow
-    
+
     # Try to find ansible in common locations
-    $pythonUserBase = python -m site --user-base
+    try {
+        $pythonUserBase = python -m site --user-base 2>&1
+        if ($LASTEXITCODE -ne 0) {
+            throw "Failed to get Python user base"
+        }
+    } catch {
+        Write-Host "❌ Failed to get Python user base. Ensure Python is installed and in PATH." -ForegroundColor Red
+        Write-Host "Error: $_" -ForegroundColor Red
+        exit 1
+    }
+
     $possiblePaths = @(
         "$pythonUserBase\Scripts",
         "$env:APPDATA\Python\Python*\Scripts",
         "$env:LOCALAPPDATA\Programs\Python\Python*\Scripts"
     )
-    
+
     foreach ($path in $possiblePaths) {
         $ansibleExe = Get-ChildItem -Path $path -Filter "ansible.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
         if ($ansibleExe) {

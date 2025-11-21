@@ -38,7 +38,8 @@ fi
 # Install Ansible collections
 echo ""
 echo "Installing Ansible collections..."
-cd "$PWD/ansible"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+cd "$SCRIPT_DIR"
 if [ -f "requirements.yml" ]; then
     ansible-galaxy collection install -r requirements.yml
     echo "✅ Collections installed successfully"
