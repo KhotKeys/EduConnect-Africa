@@ -16,17 +16,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Check for UTF-16/corrupted encoding in text files
         run: |
           echo "Checking for corrupted encoding (UTF-16 patterns) in text files..."
           CORRUPT_FILES=()
-          
+
           while IFS= read -r -d '' file; do
             # Check for UTF-16 LE BOM (FF FE) at start
             if head -c 2 "$file" 2>/dev/null | od -A n -t x1 | grep -q "ff fe"; then
               CORRUPT_FILES+=("$file (UTF-16 LE BOM)")
-            # Check for UTF-16 BE BOM (FE FF) at start  
+            # Check for UTF-16 BE BOM (FE FF) at start
             elif head -c 2 "$file" 2>/dev/null | od -A n -t x1 | grep -q "fe ff"; then
               CORRUPT_FILES+=("$file (UTF-16 BE BOM)")
             # Check for UTF-16 LE pattern (NUL byte after '<' character)
@@ -35,7 +35,7 @@ jobs:
             fi
           done < <(find . -type f \( -name "*.html" -o -name "*.htm" -o -name "*.xml" -o -name "*.css" -o -name "*.js" \) \
             -not -path "*/node_modules/*" -not -path "*/.git/*" -print0)
-          
+
           if [ ${#CORRUPT_FILES[@]} -gt 0 ]; then
             echo "❌ Found file(s) with corrupted encoding:" >&2
             printf '%s\n' "${CORRUPT_FILES[@]}" >&2
@@ -50,19 +50,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '18'
           cache: 'npm'
-      
+
       - name: Install dependencies
         run: npm ci
-      
+
       - name: Run ESLint
         run: npm run lint
-      
+
       - name: Run tests
         run: npm test
 
@@ -71,7 +71,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
@@ -79,7 +79,7 @@ jobs:
           scan-ref: '.'
           format: 'sarif'
           output: 'trivy-results.sarif'
-      
+
       - name: Upload Trivy scan results
         if: >
           always() &&
@@ -95,17 +95,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Build Docker image
         run: docker build -t edulearn:test .
-      
+
       - name: Run Trivy container scan
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: 'edulearn:test'
           format: 'sarif'
           output: 'docker-trivy-results.sarif'
-      
+
       - name: Upload Docker scan results
         if: >
           always() &&
@@ -115,7 +115,7 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           sarif_file: docker-trivy-results.sarif
-      
+
       - name: Fail on critical vulnerabilities
         uses: aquasecurity/trivy-action@master
         with:
@@ -130,21 +130,21 @@ jobs:
     if: contains(github.event.head_commit.modified, 'terraform/') || contains(github.event.pull_request.changed_files, 'terraform/')
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.6.0
-      
+
       - name: Terraform Format Check
         run: terraform fmt -check -recursive terraform/
-      
+
       - name: Run tfsec
         run: |
           # Install tfsec and run it to produce SARIF output
           curl -sSL https://raw.githubusercontent.com/aquasecurity/tfsec/master/scripts/install.sh | bash
           tfsec --format sarif --out tfsec-results.sarif terraform/
-      
+
       - name: Upload tfsec results
         if: >
           always() &&
