@@ -1,4 +1,4 @@
-# URGENT RUNBOOK — Finish Summative Project (Night-before Delivery)
+﻿# URGENT RUNBOOK â€” Finish Summative Project (Night-before Delivery)
 
 Purpose
 -------
@@ -17,8 +17,8 @@ git commit -m "WIP: emergency delivery checkpoint"
 git push -u origin urgent/summative-delivery
 ```
 
-2) Install essential tools (10–20 minutes)
-- On Windows (PowerShell as Admin) — use Chocolatey (or install tools manually):
+2) Install essential tools (10â€“20 minutes)
+- On Windows (PowerShell as Admin) â€” use Chocolatey (or install tools manually):
 
 ```powershell
 # Install Chocolatey (if missing)
@@ -39,9 +39,9 @@ You must author these yourself (course rules). Create placeholder files now so t
 - `Dockerfile` and `docker-compose.yml` at repo root
 - `.github/workflows/ci.yml` and `.github/workflows/cd.yml` (workflow skeletons)
 
-Action: create the files with minimal content (comments and TODOs) — then commit. This shows structure and lets you run local checks.
+Action: create the files with minimal content (comments and TODOs) â€” then commit. This shows structure and lets you run local checks.
 
-4) Quick local checks and scans (20–30 minutes)
+4) Quick local checks and scans (20â€“30 minutes)
 
 - Build Docker image locally (adjust path/tag):
 
@@ -96,14 +96,14 @@ ansible-playbook -i ansible/inventory.ini ansible/deploy.yml
 
 Important: If using a Bastion host, ensure `ansible_ssh_common_args` is set in `inventory.ini` to proxy via the bastion.
 
-7) GitHub Secrets (set immediately in repo Settings → Secrets)
+7) GitHub Secrets (set immediately in repo Settings â†’ Secrets)
 
 Minimum secrets to add:
 - AWS: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, `ECR_REPO`
 - Azure: `AZURE_CREDENTIALS`, `AZURE_REGISTRY`
 - Shared: `SSH_PRIVATE_KEY` (for Ansible), `DB_PASSWORD` (if needed)
 
-8) Simulate CD tasks locally (build → tag → push)
+8) Simulate CD tasks locally (build â†’ tag â†’ push)
 
 For AWS ECR example:
 
@@ -127,7 +127,7 @@ docker tag edulearn:sha-test <registryName>.azurecr.io/edulearn:sha-test
 docker push <registryName>.azurecr.io/edulearn:sha-test
 ```
 
-9) Final PR → Merge → Deploy (what CD should automate)
+9) Final PR â†’ Merge â†’ Deploy (what CD should automate)
 
 Sequence the CD must perform:
 - Run CI checks (lint, test, security scans)
@@ -144,7 +144,7 @@ Sequence the CD must perform:
 5. Show CD running and pushing image; show Ansible playbook execution logs.
 6. Refresh public URL and show change live.
 
-11) If things fail — rapid troubleshooting
+11) If things fail â€” rapid troubleshooting
 - Check GitHub Actions logs and copy error output.
 - For Trivy failures: update base image or remove vulnerable packages.
 - For tfsec failures: read the rule in the output and fix Terraform (e.g., tighten security groups).
@@ -168,4 +168,5 @@ What I WILL do next (pick one)
 - Option 2: Provide a provider-specific checklist and exact commands (AWS or Azure) for the remaining steps.
 - Option 3: Create an `URGENT_TODO.md` issue template or checklist file in the repo to guide the team through submission steps.
 
-Tell me which option you want and which cloud provider you will use (AWS or Azure). If you want me to review files, commit them to the emergency branch and ping me here — I'll review immediately and provide corrections.
+Tell me which option you want and which cloud provider you will use (AWS or Azure). If you want me to review files, commit them to the emergency branch and ping me here â€” I'll review immediately and provide corrections.
+
