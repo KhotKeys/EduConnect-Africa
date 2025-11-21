@@ -47,11 +47,6 @@ jobs:
           chmod +x ansible/setup-ansible.sh
           cd ansible && ./setup-ansible.sh
 
-      - name: Install Ansible on Ubuntu
-        run: |
-          chmod +x ansible/setup-ansible.sh
-          cd ansible && ./setup-ansible.sh
-
       - name: Write SSH key
         env:
           SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY_EC2 }}
