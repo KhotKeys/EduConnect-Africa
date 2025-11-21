@@ -139,6 +139,6 @@ jobs:
             EOF
             
             # Deploy
-            sudo docker compose pull
-            sudo docker compose up -d --force-recreate
-            sudo docker compose ps
+            sudo docker-compose pull
+            sudo docker-compose up -d --force-recreate
+            sudo docker-compose ps
