@@ -26,7 +26,7 @@ while IFS= read -r -d '' file; do
     esac
     
     # Check if file contains NUL bytes using a more reliable method
-    if python3 -c "import sys; data = open('$file', 'rb').read(); sys.exit(0 if b'\x00' in data else 1)" 2>/dev/null; then
+    if python3 -c "import sys; data = open(sys.argv[1], 'rb').read(); sys.exit(0 if b'\x00' in data else 1)" "$file" 2>/dev/null; then
         if [ "$FIX_MODE" = true ]; then
             echo "Fixing: $file"
             # Remove NUL bytes in-place using tr

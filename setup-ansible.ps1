@@ -24,12 +24,18 @@ $ansibleGalaxy = Get-Command ansible-galaxy -ErrorAction SilentlyContinue
 
 if (-not $ansible) {
     # Try common Python user paths
-    $pythonUserBase = python -c "import site; print(site.USER_BASE)" 2>$null
-    if ($pythonUserBase) {
-        $scriptsPath = Join-Path $pythonUserBase "Scripts"
-        $env:PATH = "$scriptsPath;$env:PATH"
-        $ansible = Get-Command ansible -ErrorAction SilentlyContinue
-        $ansibleGalaxy = Get-Command ansible-galaxy -ErrorAction SilentlyContinue
+    try {
+        $pythonUserBase = python -c "import site; print(site.USER_BASE)" 2>&1
+        if ($LASTEXITCODE -eq 0 -and $pythonUserBase) {
+            $scriptsPath = Join-Path $pythonUserBase "Scripts"
+            $env:PATH = "$scriptsPath;$env:PATH"
+            $ansible = Get-Command ansible -ErrorAction SilentlyContinue
+            $ansibleGalaxy = Get-Command ansible-galaxy -ErrorAction SilentlyContinue
+        } else {
+            Write-Host "Warning: Could not determine Python user base directory" -ForegroundColor Yellow
+        }
+    } catch {
+        Write-Host "Warning: Error while checking Python installation: $_" -ForegroundColor Yellow
     }
 }
 

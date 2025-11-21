@@ -34,8 +34,12 @@ fi
 
 echo ""
 echo "Installing Ansible collections..."
-ANSIBLE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$ANSIBLE_DIR"
+ANSIBLE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd)"
+if [ -z "$ANSIBLE_DIR" ] || [ ! -d "$ANSIBLE_DIR" ]; then
+    echo "Error: Failed to determine ansible directory"
+    exit 1
+fi
+cd "$ANSIBLE_DIR" || exit 1
 
 if [ -f "requirements.yml" ]; then
     ansible-galaxy collection install -r requirements.yml
