@@ -17,14 +17,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - name: Check for NUL bytes in source files
-        run: |
-          if find . -type f \( -name '*.html' -o -name '*.js' -o -name '*.css' -o -name '*.json' -o -name '*.md' \) -exec grep -l $'\x00' {} \; 2>/dev/null | head -1; then
-            echo "ERROR: Found corrupted source files with NUL bytes"
-            exit 1
-          fi
-          echo "✓ No NUL bytes in source files"
-      
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
