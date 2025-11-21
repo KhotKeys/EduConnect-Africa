@@ -11,6 +11,40 @@ on:
     branches-ignore: [ main ]
 
 jobs:
+  encoding-check:
+    name: File Encoding Validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Check for UTF-16/corrupted encoding in text files
+        run: |
+          echo "Checking for corrupted encoding (UTF-16 patterns) in text files..."
+          CORRUPT_FILES=()
+          
+          while IFS= read -r -d '' file; do
+            # Check for UTF-16 LE BOM (FF FE) at start
+            if head -c 2 "$file" 2>/dev/null | od -A n -t x1 | grep -q "ff fe"; then
+              CORRUPT_FILES+=("$file (UTF-16 LE BOM)")
+            # Check for UTF-16 BE BOM (FE FF) at start  
+            elif head -c 2 "$file" 2>/dev/null | od -A n -t x1 | grep -q "fe ff"; then
+              CORRUPT_FILES+=("$file (UTF-16 BE BOM)")
+            # Check for UTF-16 LE pattern (NUL byte after '<' character)
+            elif od -A n -t x1 -v "$file" 2>/dev/null | grep -q "3c 00"; then
+              CORRUPT_FILES+=("$file (UTF-16 LE pattern detected)")
+            fi
+          done < <(find . -type f \( -name "*.html" -o -name "*.htm" -o -name "*.xml" -o -name "*.css" -o -name "*.js" \) \
+            -not -path "*/node_modules/*" -not -path "*/.git/*" -print0)
+          
+          if [ ${#CORRUPT_FILES[@]} -gt 0 ]; then
+            echo "❌ Found file(s) with corrupted encoding:" >&2
+            printf '%s\n' "${CORRUPT_FILES[@]}" >&2
+            echo "" >&2
+            echo "Please ensure all text files use UTF-8 encoding without BOM" >&2
+            exit 1
+          fi
+          echo "✅ All checked files have proper UTF-8 encoding"
+
   lint-and-test:
     name: Lint & Test
     runs-on: ubuntu-latest
