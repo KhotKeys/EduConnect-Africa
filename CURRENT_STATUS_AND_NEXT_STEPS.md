@@ -297,3 +297,56 @@ Your project is essentially complete. You just need to:
 - **Documentation**: See SUMMATIVE_SETUP_GUIDE.md for detailed steps
 
 Good luck! 🚀
+
+---
+
+## 🔐 GITHUB SECRETS CONFIGURATION
+
+To enable automated CD deployments, repository administrators must configure the following secrets in GitHub:
+
+### Required Secrets
+
+Go to **Settings** → **Secrets and variables** → **Actions** → **New repository secret**
+
+Add each of the following secrets:
+
+1. **AWS_ACCESS_KEY_ID**
+   - Description: Your AWS IAM user access key ID
+   - How to get: AWS Console → IAM → Users → Security credentials → Create access key
+   
+2. **AWS_SECRET_ACCESS_KEY**
+   - Description: Your AWS IAM user secret access key
+   - How to get: Obtained when creating the access key above (shown only once)
+   
+3. **AWS_REGION**
+   - Description: AWS region where infrastructure is deployed
+   - Example value: `eu-north-1` or `us-east-1`
+   
+4. **ECR_REPO**
+   - Description: Full ECR repository URI
+   - Format: `<account-id>.dkr.ecr.<region>.amazonaws.com/<repository-name>`
+   - Example: `123456789012.dkr.ecr.eu-north-1.amazonaws.com/educonnect`
+   
+5. **EC2_HOST**
+   - Description: Public IP address or hostname of your EC2 instance
+   - Example: `16.171.136.183` or `ec2-16-171-136-183.eu-north-1.compute.amazonaws.com`
+   
+6. **SSH_PRIVATE_KEY_EC2**
+   - Description: Private SSH key for EC2 access (PEM format)
+   - How to get: The private key file (.pem) you downloaded when creating your EC2 key pair
+   - Note: Copy the entire contents of the .pem file, including `-----BEGIN RSA PRIVATE KEY-----` and `-----END RSA PRIVATE KEY-----`
+
+### Why These Secrets Are Required
+
+- The **CD workflow** (cd.yml) is gated and will only run deploy jobs when all required secrets are present
+- This prevents deployment failures in forked repositories or during initial setup
+- The **CI workflow** can run without secrets for linting, testing, and security scanning
+- Secrets validation is performed early in workflows to provide clear error messages
+
+### Security Notes
+
+- ⚠️ Never commit secrets directly to code or configuration files
+- ✅ Always use GitHub Secrets for sensitive credentials
+- ✅ Rotate access keys regularly
+- ✅ Use IAM roles with minimum required permissions
+
