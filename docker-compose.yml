@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    image: edulearn:latest
+    ports:
+      - "80:80"
+    environment:
+      - NODE_ENV=production
+    # Mount frontend for local development convenience (read-only inside container)
+    volumes:
+      - ./frontend:/usr/src/app/frontend:ro
+    restart: unless-stopped
+
+# To run locally:
+# 1. docker-compose up --build
+# 2. Open http://localhost  (or http://localhost:80)

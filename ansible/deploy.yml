@@ -1,0 +1,85 @@
+---
+- name: Deploy EduLearn Application
+  hosts: app_servers
+  become: yes
+  vars:
+    app_dir: /opt/edulearn
+    compose_file: "{{ app_dir }}/docker-compose.yml"
+
+  tasks:
+    - name: Ensure app directory exists
+      file:
+        path: "{{ app_dir }}"
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+        mode: '0755'
+
+    - name: Install Docker
+      apt:
+        name:
+          - docker.io
+          - docker-compose-plugin
+        state: present
+        update_cache: yes
+
+    - name: Start Docker service
+      systemd:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Add ubuntu user to docker group
+      user:
+        name: ubuntu
+        groups: docker
+        append: yes
+
+    - name: Install AWS CLI
+      shell: |
+        curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "/tmp/awscliv2.zip"
+        unzip -o /tmp/awscliv2.zip -d /tmp
+        /tmp/aws/install --update || /tmp/aws/install
+      args:
+        creates: /usr/local/bin/aws
+
+    - name: Login to ECR
+      shell: |
+        aws ecr get-login-password --region {{ aws_region }} | docker login --username AWS --password-stdin {{ ecr_repo | regex_replace('/.*', '') }}
+      environment:
+        AWS_ACCESS_KEY_ID: "{{ lookup('env', 'AWS_ACCESS_KEY_ID') }}"
+        AWS_SECRET_ACCESS_KEY: "{{ lookup('env', 'AWS_SECRET_ACCESS_KEY') }}"
+        AWS_DEFAULT_REGION: "{{ aws_region }}"
+
+    - name: Create docker-compose.yml
+      copy:
+        dest: "{{ compose_file }}"
+        content: |
+          version: '3.8'
+          services:
+            app:
+              image: {{ ecr_repo }}:{{ image_tag }}
+              ports:
+                - "80:80"
+              environment:
+                - NODE_ENV=production
+              restart: unless-stopped
+        owner: ubuntu
+        group: ubuntu
+        mode: '0644'
+
+    - name: Pull latest image
+      command: docker compose pull
+      args:
+        chdir: "{{ app_dir }}"
+
+    - name: Deploy application
+      command: docker compose up -d --force-recreate
+      args:
+        chdir: "{{ app_dir }}"
+
+    - name: Wait for application to be ready
+      wait_for:
+        port: 80
+        delay: 5
+        timeout: 60
