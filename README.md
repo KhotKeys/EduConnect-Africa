@@ -2,6 +2,8 @@
 
 ## 🌐 **LIVE APPLICATION**
 **URL**: http://16.171.136.183
+## 🌐 **LIVE DEMO**
+**URL**: https://youtu.be/3xmvmGSWl0E
 
 [![Application Status](https://img.shields.io/badge/status-live-success)](http://16.171.136.183)
 [![Deployment](https://img.shields.io/badge/deployment-AWS%20EC2-orange)](http://16.171.136.183)
